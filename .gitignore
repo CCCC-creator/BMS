@@ -1,0 +1,26 @@
+# Keil MDK 输出文件夹（你的工程是tem目录，不是Debug）
+MDK-ARM/tem/
+MDK-ARM/RTE/
+
+# 编译输出
+Build/
+Debug/
+Release/
+*.elf
+*.hex
+*.bin
+*.axf
+*.map
+
+# keil临时文件
+*.uvguix*
+*.bak
+*.dep
+*.lst
+*.o
+*.d
+*.crf
+
+# 系统文件
+.DS_Store
+Thumbs.db
