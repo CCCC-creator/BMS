@@ -59,8 +59,7 @@ extern void xPortSysTickHandler( void );
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
-extern TIM_HandleTypeDef htim4;
-extern UART_HandleTypeDef huart1;
+extern I2C_HandleTypeDef hi2c1;
 /* USER CODE BEGIN EV */
 
 /* USER CODE END EV */
@@ -143,12 +142,18 @@ void UsageFault_Handler(void)
   }
 }
 
-/* SVC_Handler 和 PendSV_Handler 不在本文件定义：
- * FreeRTOSConfig.h 已把内核的 vPortSVCHandler / xPortPendSVHandler 重定向为这两个向量名，
- * 实现在 Middleware/FreeRTOS/portable/RVDS/ARM_CM3/port.c。
- * 注意：在 CubeMX 里重新生成代码后，若这里又生成了这两个空函数，必须删除，
- * 否则与 port.c 重复定义，链接报错（L6200E: symbol multiply defined）。
- */
+/**
+  * @brief This function handles System service call via SWI instruction.
+  */
+//void SVC_Handler(void)
+//{
+//  /* USER CODE BEGIN SVCall_IRQn 0 */
+
+//  /* USER CODE END SVCall_IRQn 0 */
+//  /* USER CODE BEGIN SVCall_IRQn 1 */
+
+//  /* USER CODE END SVCall_IRQn 1 */
+//}
 
 /**
   * @brief This function handles Debug monitor.
@@ -162,6 +167,19 @@ void DebugMon_Handler(void)
 
   /* USER CODE END DebugMonitor_IRQn 1 */
 }
+
+/**
+  * @brief This function handles Pendable request for system service.
+  */
+//void PendSV_Handler(void)
+//{
+//  /* USER CODE BEGIN PendSV_IRQn 0 */
+
+//  /* USER CODE END PendSV_IRQn 0 */
+//  /* USER CODE BEGIN PendSV_IRQn 1 */
+
+//  /* USER CODE END PendSV_IRQn 1 */
+//}
 
 /**
   * @brief This function handles System tick timer.
@@ -188,31 +206,31 @@ void SysTick_Handler(void)
 /******************************************************************************/
 
 /**
-  * @brief This function handles TIM4 global interrupt.
+  * @brief This function handles I2C1 event interrupt.
   */
-void TIM4_IRQHandler(void)
+void I2C1_EV_IRQHandler(void)
 {
-  /* USER CODE BEGIN TIM4_IRQn 0 */
+  /* USER CODE BEGIN I2C1_EV_IRQn 0 */
 
-  /* USER CODE END TIM4_IRQn 0 */
-  HAL_TIM_IRQHandler(&htim4);
-  /* USER CODE BEGIN TIM4_IRQn 1 */
+  /* USER CODE END I2C1_EV_IRQn 0 */
+  HAL_I2C_EV_IRQHandler(&hi2c1);
+  /* USER CODE BEGIN I2C1_EV_IRQn 1 */
 
-  /* USER CODE END TIM4_IRQn 1 */
+  /* USER CODE END I2C1_EV_IRQn 1 */
 }
 
 /**
-  * @brief This function handles USART1 global interrupt.
+  * @brief This function handles I2C1 error interrupt.
   */
-void USART1_IRQHandler(void)
+void I2C1_ER_IRQHandler(void)
 {
-  /* USER CODE BEGIN USART1_IRQn 0 */
+  /* USER CODE BEGIN I2C1_ER_IRQn 0 */
 
-  /* USER CODE END USART1_IRQn 0 */
-  HAL_UART_IRQHandler(&huart1);
-  /* USER CODE BEGIN USART1_IRQn 1 */
+  /* USER CODE END I2C1_ER_IRQn 0 */
+  HAL_I2C_ER_IRQHandler(&hi2c1);
+  /* USER CODE BEGIN I2C1_ER_IRQn 1 */
 
-  /* USER CODE END USART1_IRQn 1 */
+  /* USER CODE END I2C1_ER_IRQn 1 */
 }
 
 /* USER CODE BEGIN 1 */

@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "i2c.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
@@ -26,6 +27,8 @@
 /* USER CODE BEGIN Includes */
 #include "FreeRTOS.h"
 #include "task.h"
+#include "DWT.h"
+#include "app_task.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -57,16 +60,7 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-/* 模板示例任务：空转延时。要看现象：在 CubeMX 配一个 GPIO 输出（如 PC13 板载 LED），
- * 在循环里加 HAL_GPIO_TogglePin() 再编译烧录。 */
-static void HeartbeatTask( void * argument )
-{
-  ( void ) argument;
-  for ( ;; )
-  {
-    vTaskDelay( pdMS_TO_TICKS( 500 ) );
-  }
-}
+
 /* USER CODE END 0 */
 
 /**
@@ -86,7 +80,7 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-
+  DWT_Init();
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -100,17 +94,17 @@ int main(void)
   MX_GPIO_Init();
   MX_TIM4_Init();
   MX_USART1_UART_Init();
+  MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
-  HAL_UART_Transmit( &huart1, ( uint8_t * )"F1 FreeRTOS template ready\r\n", sizeof("F1 FreeRTOS template ready\r\n") - 1, 100 );
+  LEDTaskHandle = xTaskCreateStatic( 	LEDTask,
+																			"LEDTask",
+																			LED_STACK_SIZE,
+																			NULL,
+																			LED_PRIORITY,
+																			LEDTaskStack,
+																			&LEDTaskTCB );
 
-  if ( xTaskCreate( HeartbeatTask, "hb", 128, NULL, 2, NULL ) != pdPASS )
-  {
-    Error_Handler();
-  }
-
-  vTaskStartScheduler();  /* 成功后不再返回；只有堆不够建空闲/定时器任务时才会返回 */
-
-  Error_Handler();        /* 走到这里说明调度器启动失败，十有八九是 FreeRTOS 堆不够 */
+  vTaskStartScheduler();
   /* USER CODE END 2 */
 
   /* Infinite loop */
