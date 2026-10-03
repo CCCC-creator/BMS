@@ -57,14 +57,14 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define LED_Pin GPIO_PIN_15
-#define LED_GPIO_Port GPIOB
 #define MCU_WAKE_BQ_Pin GPIO_PIN_8
 #define MCU_WAKE_BQ_GPIO_Port GPIOA
 #define Modbus_TX_Pin GPIO_PIN_9
 #define Modbus_TX_GPIO_Port GPIOA
 #define Modbus_RX_Pin GPIO_PIN_10
 #define Modbus_RX_GPIO_Port GPIOA
+#define LED_Pin GPIO_PIN_15
+#define LED_GPIO_Port GPIOA
 #define MCU_IIC1_SCL_Pin GPIO_PIN_8
 #define MCU_IIC1_SCL_GPIO_Port GPIOB
 #define MCU_IIC1_SDA_Pin GPIO_PIN_9

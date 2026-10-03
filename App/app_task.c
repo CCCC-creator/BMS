@@ -1,19 +1,12 @@
+#include "FreeRTOS.h"
+#include "task.h"
+#include "main.h"
+#include "stdio.h"
 #include "app_task.h"
 
-StaticTask_t LEDTaskTCB;
-StackType_t LEDTaskStack[LED_STACK_SIZE];
-TaskHandle_t LEDTaskHandle;
 
-void LEDTask(void *pvParameters)
-{
-		(void)pvParameters;
-		while(1)
-		{
-				HAL_GPIO_TogglePin(MCU_WAKE_BQ_GPIO_Port, MCU_WAKE_BQ_Pin);
-				vTaskDelay(500);
-		}
-}
 
+/*空闲任务*/
 void vApplicationGetIdleTaskMemory( StaticTask_t **ppxIdleTaskTCBBuffer, 
 																		StackType_t **ppxIdleTaskStackBuffer, 
 																		uint32_t *pulIdleTaskStackSize )
@@ -25,6 +18,8 @@ void vApplicationGetIdleTaskMemory( StaticTask_t **ppxIdleTaskTCBBuffer,
 		*pulIdleTaskStackSize = configMINIMAL_STACK_SIZE;
 }
 
+
+/*定时器服务任务*/
 void vApplicationGetTimerTaskMemory( StaticTask_t **ppxTimerTaskTCBBuffer, StackType_t **ppxTimerTaskStackBuffer, uint32_t *pulTimerTaskStackSize )
 {
 	static StaticTask_t xTimerTaskTCB;
@@ -32,4 +27,22 @@ void vApplicationGetTimerTaskMemory( StaticTask_t **ppxTimerTaskTCBBuffer, Stack
 		*ppxTimerTaskTCBBuffer = &xTimerTaskTCB;
 		*ppxTimerTaskStackBuffer = xTimerTaskStack;
 		*pulTimerTaskStackSize = configTIMER_TASK_STACK_DEPTH;
+}
+
+/*任务*/
+void LEDTask(void *pvParameters)
+{
+		(void)pvParameters;
+#if LED_TASK_DEBUG
+		static UBaseType_t LEDGetStack = 0;
+#endif
+		while(1)
+		{
+				HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
+#if LED_TASK_DEBUG
+				LEDGetStack = uxTaskGetStackHighWaterMark(NULL);
+				printf("LEDTask：%d字\r\n", LEDGetStack);
+#endif
+				vTaskDelay(500);			
+		}
 }

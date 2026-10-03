@@ -29,6 +29,9 @@
 #include "task.h"
 #include "DWT.h"
 #include "app_task.h"
+#include "stdio.h"
+#include "bq76940.h"
+#include "app_init.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -96,14 +99,9 @@ int main(void)
   MX_USART1_UART_Init();
   MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
-  LEDTaskHandle = xTaskCreateStatic( 	LEDTask,
-																			"LEDTask",
-																			LED_STACK_SIZE,
-																			NULL,
-																			LED_PRIORITY,
-																			LEDTaskStack,
-																			&LEDTaskTCB );
-
+	BQ_Init();
+	
+	App_Init();
   vTaskStartScheduler();
   /* USER CODE END 2 */
 
@@ -158,7 +156,7 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-/* FreeRTOS���Թ��ӣ�configASSERT����ʱ���루ʵ����FreeRTOSConfig.h������ */
+/* FreeRTOS 内部大量 `configASSERT(条件)`，**条件为假就触发断言，调用 vAssertCalled***/
 void vAssertCalled( const char * pcFile, unsigned long ulLine )
 {
   ( void )pcFile;
@@ -167,6 +165,12 @@ void vAssertCalled( const char * pcFile, unsigned long ulLine )
   while (1)
   {
   }
+}
+
+int fputc(int ch, FILE *f)
+{
+    HAL_UART_Transmit(&huart1, (uint8_t *)&ch, 1, 100);
+    return ch;
 }
 
 /* configCHECK_FOR_STACK_OVERFLOW = 2：上下文切换时检测到任务栈溢出会进这里 */
