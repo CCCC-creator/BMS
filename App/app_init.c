@@ -10,7 +10,6 @@
 
 void App_Init(void)
 {
-	taskENTER_CRITICAL();               /* 进入临界区 */
 	xTaskCreateStatic( 	LEDTask,
 											"LEDTask",
 											LED_STACK_SIZE,
@@ -19,6 +18,5 @@ void App_Init(void)
 											LEDTaskStack,
 											&LEDTaskTCB );
 	
-	
-	taskEXIT_CRITICAL();                /* 退出临界区 */
+
 }

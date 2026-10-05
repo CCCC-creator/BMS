@@ -18,7 +18,6 @@ void vApplicationGetIdleTaskMemory( StaticTask_t **ppxIdleTaskTCBBuffer,
 		*pulIdleTaskStackSize = configMINIMAL_STACK_SIZE;
 }
 
-
 /*定时器服务任务*/
 void vApplicationGetTimerTaskMemory( StaticTask_t **ppxTimerTaskTCBBuffer, StackType_t **ppxTimerTaskStackBuffer, uint32_t *pulTimerTaskStackSize )
 {
@@ -29,6 +28,8 @@ void vApplicationGetTimerTaskMemory( StaticTask_t **ppxTimerTaskTCBBuffer, Stack
 		*pulTimerTaskStackSize = configTIMER_TASK_STACK_DEPTH;
 }
 
+
+/*--------------------------------------------------------------------------------------------------------------*/
 /*任务*/
 void LEDTask(void *pvParameters)
 {
