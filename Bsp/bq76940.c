@@ -29,26 +29,27 @@
 #define ADCGAIN2										0x59
 #define OV_THRESHOLD								4300    	/* 阈值，单位：mV */
 #define UV_THRESHOLD								2500			/* 阈值，单位：mV */
+#define VC1_HI											0x0C
+#define VC1_LO											0x0D
+
 
 
 static unsigned char CRC8(unsigned char *ptr, unsigned char len, unsigned char key);
 static HAL_StatusTypeDef BQ_WriteReg(uint8_t reg, uint8_t val);
-static HAL_StatusTypeDef BQ_ReadReg(uint8_t reg, uint8_t *val);
-
+//static HAL_StatusTypeDef BQ_ReadReg(uint8_t reg, uint8_t *val);
+static HAL_StatusTypeDef BQ_ReadBlock(uint8_t reg, uint8_t *date, uint8_t len);
 
 static void BQ_Wake(void);
 static void BQ_Config(void);
 static void BQ_Getoffset(void);
 static void BQ_ConfigProtect(void);
+static void BQ_ReadAllCell(void);
 
 static uint16_t GAIN14;
 static int8_t Offset;
 
 
-/*模数转换器的转换函数是一个线性方程，其定义如下：
-V（单元） = 增益 x 模数转换器（单元） + 偏移量 
-V(cell) = GAIN x ADC(cell) + OFFSET
-增益以微伏/位为单位存储，而偏移量则以毫伏为单位存储。*/
+
 /*--------------------------------------------------------------------------------------------------------------*/
 /* BQ初始化 */
 void BQ_Init(void)
@@ -67,9 +68,13 @@ void BQ_Init(void)
 
 
 /* 读取电压[9]，电流，温度 */
+/*模数转换器的转换函数是一个线性方程，其定义如下：
+V（单元） = 增益 x 模数转换器（单元） + 偏移量 
+V(cell) = GAIN x ADC(cell) + OFFSET
+增益以微伏/位为单位存储，而偏移量则以毫伏为单位存储。*/
 void BQ_ReadAll(void)
 {
-		
+		BQ_ReadAllCell();
 }
 
 
@@ -96,17 +101,48 @@ void BQ_SHIP(void)
 /* 校准ADCOFFSET 
 ADC 增益偏移值，最低 3 位 ADCGAIN<4：0> 是针对 ADC 转换函数的生产校准值，单位
 为 μV/LSB。其范围为 365 μV/LSB 至 396 μV/LSB，步长为 1 μV/LSB，可按如下公
-式计算：GAIN = 365 μV/LSB + (ADCGAIN<4：0>以十进制形式表示的值) × (1 μV/LSB)*/
+式计算：GAIN = 365 μV/LSB + (ADCGAIN<4：0>以十进制形式表示的值) × (1 μV/LSB)
+ADCOFFSET；满量程输入范围为 -128 毫伏至 127 毫伏，最小二进制位为 1 毫伏。*/
 static void BQ_Getoffset(void)
 {
 		uint8_t Gain[2];
-		BQ_ReadReg(ADCOFFSET, (uint8_t*)&Offset);
-		BQ_ReadReg(ADCGAIN1, &Gain[0]);	
-		BQ_ReadReg(ADCGAIN2, &Gain[1]);
+		BQ_ReadBlock(ADCOFFSET, (uint8_t*)&Offset, 1);
+		BQ_ReadBlock(ADCGAIN1, &Gain[0], 1);
+	  BQ_ReadBlock(ADCGAIN2, &Gain[1], 1);
 		GAIN14 = 365 + ((Gain[0] & 0x0C) << 1 | (Gain[1] & 0xE0) >> 5);
-		printf("Offset=%02d， GAIN14=%02d\r\n", Offset, GAIN14);
+		printf("Offset=%02d， GAIN=%02d\r\n", Offset, GAIN14);
 }
 
+/* 读所有电池电压 */
+static void BQ_ReadAllCell(void)
+{
+		int V_val;
+		uint16_t adc14;
+		uint8_t v[2];
+		uint8_t VC_HI = VC1_HI;
+		uint8_t VC_LO = VC1_LO;
+		for(int i = 0; i<15; i++)
+		{
+			BQ_ReadBlock(VC_HI, v, 2);
+			adc14 = ((uint16_t) (v[0] & 0x3F) << 8 ) | v[1];
+			V_val = (GAIN14 * adc14 + 1000/2 )/1000 + Offset;   /*  整数四舍五入 1000/2 */
+			printf("Cell%d = %dmV\r\n", i + 1 , V_val);
+			VC_HI += 2;
+			VC_LO += 2;
+		}
+}
+
+///* 读Cell1电压 */
+//static void BQ_ReadCell1(void)
+//{
+//		int V_val;
+//		uint16_t adc14;
+//		uint8_t v[2];
+//		BQ_ReadBlock(VC1_HI, v, 2);
+//		adc14 = ((uint16_t) (v[0] & 0x3F) << 8 ) | v[1];
+//		V_val = (GAIN14 * adc14 + 1000/2 )/1000 + Offset;  /*  整数四舍五入 1000/2 */
+//		printf("Cell1 = %dmV\r\n", V_val);
+//}
 
 /* 写寄存器，设置AFE保护 
 (a) OV_TRIP_FULL = (OV– ADCOFFSET) ÷ ADCGAIN
@@ -135,26 +171,66 @@ static HAL_StatusTypeDef BQ_WriteReg(uint8_t reg, uint8_t val)
 		return I2C_Write_Status;
 }
 
+///* 读寄存器 */
+///* 在单字节读取操作中，循环冗余校验（CRC）是在第二次启动后计算的，并使用从机地址和数据字节。
+//在块读取操作中，第一个数据字节的 CRC 在第二次启动后计算，并使用从机地址和数据字节。
+//后续数据字节的 CRC 则仅基于数据字节进行计算。*/
+//static HAL_StatusTypeDef BQ_ReadReg(uint8_t reg, uint8_t *val)
+//{
+//		HAL_StatusTypeDef I2C_Read_Status;
+//		uint8_t buf[2];
+//		uint8_t frame[2];
+//		I2C_Read_Status = HAL_I2C_Mem_Read(&hi2c1, BQ_Address, reg, I2C_MEMADD_SIZE_8BIT, buf, 2, 100);
+//		
+//		if(I2C_Read_Status != HAL_OK)
+//			return I2C_Read_Status;
+//		
+//		frame[0] = BQ_Address | 0x01;   									/* 按位与0x01 读 */
+//		frame[1] = buf[0];
+//		if(CRC8(frame, 2, 0x07) != buf[1])
+//			return HAL_ERROR;
+//		
+//		*val = buf[0];		
+//		return HAL_OK;
+//}
+
 /* 读寄存器 */
-static HAL_StatusTypeDef BQ_ReadReg(uint8_t reg, uint8_t *val)
-{
+/* 块读 */
+/* 在单字节读取操作中，循环冗余校验（CRC）是在第二次启动后计算的，并使用从机地址和数据字节。
+在块读取操作中，第一个数据字节的 CRC 在第二次启动后计算，并使用从机地址和数据字节。
+后续数据字节的 CRC 则仅基于数据字节进行计算。*/
+static HAL_StatusTypeDef BQ_ReadBlock(uint8_t reg, uint8_t *data, uint8_t len)
+{		
 		HAL_StatusTypeDef I2C_Read_Status;
-		uint8_t buf[2];
+		uint8_t raw[8];
+		uint8_t i;
 		uint8_t frame[2];
-		I2C_Read_Status = HAL_I2C_Mem_Read(&hi2c1, BQ_Address, reg, I2C_MEMADD_SIZE_8BIT, buf, 2, 100);
+	
+		if(len > 4)
+			return HAL_ERROR;
+		
+		I2C_Read_Status = HAL_I2C_Mem_Read(&hi2c1, BQ_Address, reg, I2C_MEMADD_SIZE_8BIT, raw, len * 2, 100);
 		
 		if(I2C_Read_Status != HAL_OK)
 			return I2C_Read_Status;
 		
-		frame[0] = BQ_Address | 0x01;
-		frame[1] = buf[0];
-		if(CRC8(frame, 2, 0x07) != buf[1])
+		frame[0] = BQ_Address | 0x01;   									/* 按位与0x01 读 */
+		frame[1] = raw[0];
+		if(CRC8(frame, 2, 0x07) != raw[1])
 			return HAL_ERROR;
 		
-		*val = buf[0];
-		HAL_Delay(20);		
+		for(i = 1; i < len; i++)														/*后续数据字节的 CRC 则仅基于数据字节进行计算*/
+		{
+			frame[0] = raw[2 * i];
+			if(CRC8(frame, 1, 0x07) != raw[2 * i + 1])
+				return HAL_ERROR;
+		}
+		
+		for(i = 0; i < len; i++)
+			data[i] = raw[2 * i];
 		return HAL_OK;
 }
+
 
 /* CRC8校验计算
 unsigned char *ptr
