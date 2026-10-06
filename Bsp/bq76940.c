@@ -3,6 +3,7 @@
 #include "bq76940.h"
 #include "i2c.h"
 #include "stdio.h"
+#include "math.h"
 
 
 
@@ -27,30 +28,44 @@
 #define ADCOFFSET										0x51
 #define ADCGAIN1										0x50
 #define ADCGAIN2										0x59
-#define OV_THRESHOLD								4300    	/* 阈值，单位：mV */
-#define UV_THRESHOLD								2500			/* 阈值，单位：mV */
+#define OV_THRESHOLD								4250    	/* 阈值，单位：mV */
+#define UV_THRESHOLD								2750			/* 阈值，单位：mV */
 #define VC1_HI											0x0C
 #define VC1_LO											0x0D
+#define CC_HI												0x32
+//#define CC_LO												0x33
+#define BAT_HI											0x2A
+//#define BAT_LO											0x2B
+#define TotalCells										9
+#define TS1_HI 											0x2C
+//#define	TS1_LO  										0x2D
 
 
-
-static unsigned char CRC8(unsigned char *ptr, unsigned char len, unsigned char key);
-static HAL_StatusTypeDef BQ_WriteReg(uint8_t reg, uint8_t val);
-//static HAL_StatusTypeDef BQ_ReadReg(uint8_t reg, uint8_t *val);
-static HAL_StatusTypeDef BQ_ReadBlock(uint8_t reg, uint8_t *date, uint8_t len);
 
 static void BQ_Wake(void);
 static void BQ_Config(void);
 static void BQ_Getoffset(void);
 static void BQ_ConfigProtect(void);
-static void BQ_ReadAllCell(void);
+//static void BQ_GetCell1(void);
+static void BQ_GetAllCellV(void);
+static void BQ_GetCurr(void);
+static void BQ_GetTotalV(void);
+static void BQ_GetTem(void);
 
-static uint16_t GAIN14;
-static int8_t Offset;
+/* bsp */
+static unsigned char CRC8(unsigned char *ptr, unsigned char len, unsigned char key);
+static HAL_StatusTypeDef BQ_WriteReg(uint8_t reg, uint8_t val);
+//static HAL_StatusTypeDef BQ_ReadReg(uint8_t reg, uint8_t *val);
+static HAL_StatusTypeDef BQ_ReadBlock(uint8_t reg, uint8_t *date, uint8_t len);
+static const uint8_t cell_used[15] = {1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1};
+
+static uint16_t GAIN14;								/* 微伏 */
+static int8_t Offset;									/* 毫伏 */
 
 
 
 /*--------------------------------------------------------------------------------------------------------------*/
+
 /* BQ初始化 */
 void BQ_Init(void)
 {		
@@ -72,9 +87,12 @@ void BQ_Init(void)
 V（单元） = 增益 x 模数转换器（单元） + 偏移量 
 V(cell) = GAIN x ADC(cell) + OFFSET
 增益以微伏/位为单位存储，而偏移量则以毫伏为单位存储。*/
-void BQ_ReadAll(void)
+void BQ_GetAll(void)
 {
-		BQ_ReadAllCell();
+		BQ_GetAllCellV();
+		BQ_GetTotalV();
+		BQ_GetCurr();
+		BQ_GetTem();
 }
 
 
@@ -87,6 +105,7 @@ void BQ_Control(void)
 
 
 /*--------------------------------------------------------------------------------------------------------------*/
+
 /* BQ休眠模式SHIP。调用后 I2C 失效，唤醒需 PA8 上升沿脉冲 */
 void BQ_SHIP(void)
 {
@@ -113,12 +132,55 @@ static void BQ_Getoffset(void)
 		printf("Offset=%02d， GAIN=%02d\r\n", Offset, GAIN14);
 }
 
+/* 测量电流 */
+/* SYS_STAT (0x00)
+CC_READY（第 7 位）：表示新的库仑计数器读数已可用。
+请注意，如果在两个相邻的 CC 读数可用之间该位未被清零，则该位会保持为 1。
+此位只能由主机清除（而不能设置）。 
+0 = 尚未有新的 CC 读数可用或该位已被主机微控制器清除。 
+1 = 新的 CC 读数已可用。该位会保持高电平直至被主机清除。*/
+/* CC_HI(0x32)andCC_LO(0x33)
+CC15:8（位 7 - 0）：库仑计数器的上 8 位最高有效位。
+如果在同一事务中（通过地址自动递增的方式）读取高、低两个寄
+存器，则始终以原子值的形式返回。
+d CC7:0（位 7 - 0）：库仑计数器的下 8 位最低有效位 */
+/* CC：16 位有符号数（补码） */
+/* CC Reading (in μV) = [16-bit 2’s Complement Value] × (8.44 μV/LSB)
+CC读数（单位：μV）= [16位二进制补码值] × (8.44 μV/LSB) */ 
+static void BQ_GetCurr(void)
+{
+		uint8_t v[2];
+		int cc;
+		int Curr;
+		BQ_ReadBlock(CC_HI, v, 2);
+		cc = (int16_t)((uint16_t) (v[0] << 8 ) | v[1] );				
+		Curr = (cc < 0) ? (cc * 2110 - 500) / 1000 : (cc * 2110 + 500) / 1000;				/* cc×8.44μV÷4mΩ×1000 = cc×2110μA。 整数四舍五入 1000/2 = 500， 解决负数四舍五入问题*/
+		printf("cc=%d，电流：%dmA\r\n", cc, Curr);			
+}
+
+/* 测量温度 */
+/*VTSX = (ADC in Decimal) x 382 μV/LSB
+RTS = (10,000 × VTSX) ÷ (3.3– VTSX) */
+static void BQ_GetTem(void)
+{
+		float VTSX;
+		float RTS;
+		int Tem;
+		uint8_t v[2];
+		BQ_ReadBlock(TS1_HI, v, 2);
+		VTSX = ((uint16_t)((uint16_t)(v[0] & 0x3F)) << 8 | v[1] ) * 0.382f;			/* 382是uV */
+		RTS = (10000.0f * VTSX) / (3300.f - VTSX);															/* 3.3是V */
+		Tem = 1 / (1 / (273.15 + 25)+(log(RTS / 10000)) / 3380)- 273.15 + 0.5;	/*	NTC 热敏电阻 B 值公式 */
+		printf("Tem = %d\r\n", Tem);
+}
+
 /* 读所有电池电压 */
-static void BQ_ReadAllCell(void)
+static void BQ_GetAllCellV(void)
 {
 		int V_val;
 		uint16_t adc14;
 		uint8_t v[2];
+		int V_total;
 		uint8_t VC_HI = VC1_HI;
 		uint8_t VC_LO = VC1_LO;
 		for(int i = 0; i<15; i++)
@@ -127,13 +189,16 @@ static void BQ_ReadAllCell(void)
 			adc14 = ((uint16_t) (v[0] & 0x3F) << 8 ) | v[1];
 			V_val = (GAIN14 * adc14 + 1000/2 )/1000 + Offset;   /*  整数四舍五入 1000/2 */
 			printf("Cell%d = %dmV\r\n", i + 1 , V_val);
+			if(cell_used[i])
+				V_total += V_val;
 			VC_HI += 2;
 			VC_LO += 2;
 		}
+		printf("V_total = %dmV\r\n", V_total);
 }
 
 ///* 读Cell1电压 */
-//static void BQ_ReadCell1(void)
+//static void BQ_GetCell1(void)
 //{
 //		int V_val;
 //		uint16_t adc14;
@@ -144,20 +209,40 @@ static void BQ_ReadAllCell(void)
 //		printf("Cell1 = %dmV\r\n", V_val);
 //}
 
+/* 读总电压 */
+/* V(BAT) = 4 × GAIN × ADC(cell) + (#Cells × OFFSET)。
+其中，GAIN以μV/LSB为单位存储，OFFSET以mV为单位存储。 */
+static void BQ_GetTotalV(void)
+{
+		int TotalV;
+		uint16_t bat ;
+		uint8_t v[2];
+		BQ_ReadBlock(BAT_HI, v, 2);
+		bat = (uint16_t)((uint16_t) v[0] << 8 ) | v[1];
+		TotalV = (4 * GAIN14 * bat + 1000/2 )/1000 + (TotalCells * Offset);   /*  整数四舍五入 1000/2 */
+		printf("TotalV = %dmV\r\n", TotalV);
+}
+
 /* 写寄存器，设置AFE保护 
 (a) OV_TRIP_FULL = (OV– ADCOFFSET) ÷ ADCGAIN
 (b) UV_TRIP_FULL = (UV– ADCOFFSET) ÷ ADCGAIN*/
+/* 短路保护： 1.设计目标：25A 短路保护
+2.换算成电压：25A × 4mΩ(采样电阻) = 100mV
+3.延迟 100 μs*/
+/* 过流保护： 1.设计目标：11A 过流保护
+2.换算成电压：11A × 4mΩ(采样电阻) = 44mV
+3.延迟 320 μs*/
 static void BQ_ConfigProtect(void)
 {
 		uint8_t OV_TRIP_FULL;
 		uint8_t UV_TRIP_FULL;
 		float t = GAIN14/1000.0f;   									/* μV 换 m V */
-		OV_TRIP_FULL = (uint8_t)((((unsigned int)((OV_THRESHOLD - Offset)/t + 0.5f)) >> 4 )& 0xFF);  /* 浮点数四舍五入公式：`float_val + 0.5f`，再强制转为整数。 */
-		UV_TRIP_FULL = (uint8_t)((((unsigned int)((UV_THRESHOLD - Offset)/t + 0.5f)) >> 4 )& 0xFF);
+		OV_TRIP_FULL = (uint8_t)((((unsigned int)((OV_THRESHOLD - Offset)/t + 0.5f)) >> 4 )& 0xFF);  /* 浮点数四舍五入公式：`float_val + 0.5f`，再强制转为整数。 过压：4300mV */
+		UV_TRIP_FULL = (uint8_t)((((unsigned int)((UV_THRESHOLD - Offset)/t + 0.5f)) >> 4 )& 0xFF);		/* 欠压：2500mV */
 		BQ_WriteReg(OV_TRIP, OV_TRIP_FULL);
 		BQ_WriteReg(UV_TRIP, UV_TRIP_FULL);
-		BQ_WriteReg(PROTECT1, 0xFF);
-		BQ_WriteReg(PROTECT2, 0xFF);
+		BQ_WriteReg(PROTECT1, 0x0F); 
+		BQ_WriteReg(PROTECT2, 0x5D); 
 }
 
 /* 写寄存器 */
@@ -268,9 +353,9 @@ static unsigned char CRC8(unsigned char *ptr, unsigned char len, unsigned char k
 /* 初始化BQ寄存器 */
 static void BQ_Config(void)
 {
-		static const unsigned char BQ769_INITReg[12] = {SYS_STAT, CELLBAL1, CELLBAL2, CELLBAL3, SYS_CTRL1, SYS_CTRL2,
+		const unsigned char BQ769_INITReg[12] = {SYS_STAT, CELLBAL1, CELLBAL2, CELLBAL3, SYS_CTRL1, SYS_CTRL2,
 																										PROTECT1, PROTECT2, PROTECT3, OV_TRIP, UV_TRIP, CC_CFG};
-		static const unsigned char BQ769_INITdata[12] = {0xFF, 0x00, 0x00, 0x00, 0x18, 0x43,
+		const unsigned char BQ769_INITdata[12] = {0xFF, 0x00, 0x00, 0x00, 0x18, 0x43,
 																										 0x00, 0x00, 0x00, 0x00, 0x00, 0x19};
 		char i;
 		for(i=0; i<12; i++)

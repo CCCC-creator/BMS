@@ -100,7 +100,7 @@ int main(void)
   MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
 	BQ_Init();
-	BQ_ReadAll();
+	BQ_GetAll();
 	App_Init();
   vTaskStartScheduler();
   /* USER CODE END 2 */
