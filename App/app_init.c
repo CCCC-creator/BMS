@@ -18,5 +18,11 @@ void App_Init(void)
 											LEDTaskStack,
 											&LEDTaskTCB );
 	
-
+	xTaskCreateStatic( 	SampleTask,
+											"SampleTask",
+											Sample_STACK_SIZE,
+											NULL,
+											Sample_PRIORITY,
+											SampleTaskStack,
+											&SampleTaskTCB );
 }

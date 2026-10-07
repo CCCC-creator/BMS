@@ -50,7 +50,7 @@ static void BQ_ConfigProtect(void);
 static void BQ_GetAllCellV(void);
 static void BQ_GetCurr(void);
 static void BQ_GetTotalV(void);
-static void BQ_GetTem(void);
+
 
 /* bsp */
 static unsigned char CRC8(unsigned char *ptr, unsigned char len, unsigned char key);
@@ -64,6 +64,7 @@ static int8_t Offset;									/* 毫伏 */
 
 
 
+/*--------------------------------------------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------------------------------------------*/
 
 /* BQ初始化 */
@@ -92,7 +93,6 @@ void BQ_GetAll(void)
 		BQ_GetAllCellV();
 		BQ_GetTotalV();
 		BQ_GetCurr();
-		BQ_GetTem();
 }
 
 
@@ -105,6 +105,7 @@ void BQ_Control(void)
 
 
 /*--------------------------------------------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------------------------------------------*/
 
 /* BQ休眠模式SHIP。调用后 I2C 失效，唤醒需 PA8 上升沿脉冲 */
 void BQ_SHIP(void)
@@ -116,6 +117,7 @@ void BQ_SHIP(void)
 
 
 /*--------------------------------------------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------------------------------------------*/
 
 /* 校准ADCOFFSET 
 ADC 增益偏移值，最低 3 位 ADCGAIN<4：0> 是针对 ADC 转换函数的生产校准值，单位
@@ -124,7 +126,7 @@ ADC 增益偏移值，最低 3 位 ADCGAIN<4：0> 是针对 ADC 转换函数的生产校准值，单位
 ADCOFFSET；满量程输入范围为 -128 毫伏至 127 毫伏，最小二进制位为 1 毫伏。*/
 static void BQ_Getoffset(void)
 {
-		uint8_t Gain[2];
+		uint8_t Gain[2] = { 0 };
 		BQ_ReadBlock(ADCOFFSET, (uint8_t*)&Offset, 1);
 		BQ_ReadBlock(ADCGAIN1, &Gain[0], 1);
 	  BQ_ReadBlock(ADCGAIN2, &Gain[1], 1);
@@ -149,9 +151,9 @@ d CC7:0（位 7 - 0）：库仑计数器的下 8 位最低有效位 */
 CC读数（单位：μV）= [16位二进制补码值] × (8.44 μV/LSB) */ 
 static void BQ_GetCurr(void)
 {
-		uint8_t v[2];
-		int cc;
-		int Curr;
+		uint8_t v[2] = { 0 };
+		int cc = 0;
+		int Curr = 0;
 		BQ_ReadBlock(CC_HI, v, 2);
 		cc = (int16_t)((uint16_t) (v[0] << 8 ) | v[1] );				
 		Curr = (cc < 0) ? (cc * 2110 - 500) / 1000 : (cc * 2110 + 500) / 1000;				/* cc×8.44μV÷4mΩ×1000 = cc×2110μA。 整数四舍五入 1000/2 = 500， 解决负数四舍五入问题*/
@@ -161,12 +163,12 @@ static void BQ_GetCurr(void)
 /* 测量温度 */
 /*VTSX = (ADC in Decimal) x 382 μV/LSB
 RTS = (10,000 × VTSX) ÷ (3.3– VTSX) */
-static void BQ_GetTem(void)
+void BQ_GetTem(void)
 {
-		float VTSX;
-		float RTS;
-		int Tem;
-		uint8_t v[2];
+		float VTSX = 0;
+		float RTS = 0;
+		int Tem = 0;
+		uint8_t v[2] = { 0 };
 		BQ_ReadBlock(TS1_HI, v, 2);
 		VTSX = ((uint16_t)((uint16_t)(v[0] & 0x3F)) << 8 | v[1] ) * 0.382f;			/* 382是uV */
 		RTS = (10000.0f * VTSX) / (3300.f - VTSX);															/* 3.3是V */
@@ -177,10 +179,10 @@ static void BQ_GetTem(void)
 /* 读所有电池电压 */
 static void BQ_GetAllCellV(void)
 {
-		int V_val;
-		uint16_t adc14;
-		uint8_t v[2];
-		int V_total;
+		int V_val = 0;
+		uint16_t adc14 = 0;
+		uint8_t v[2] = { 0 };
+		int V_total = 0;
 		uint8_t VC_HI = VC1_HI;
 		uint8_t VC_LO = VC1_LO;
 		for(int i = 0; i<15; i++)
@@ -195,6 +197,7 @@ static void BQ_GetAllCellV(void)
 			VC_LO += 2;
 		}
 		printf("V_total = %dmV\r\n", V_total);
+		
 }
 
 ///* 读Cell1电压 */
@@ -214,9 +217,9 @@ static void BQ_GetAllCellV(void)
 其中，GAIN以μV/LSB为单位存储，OFFSET以mV为单位存储。 */
 static void BQ_GetTotalV(void)
 {
-		int TotalV;
-		uint16_t bat ;
-		uint8_t v[2];
+		int TotalV = 0;
+		uint16_t bat = 0;
+		uint8_t v[2] = { 0 };
 		BQ_ReadBlock(BAT_HI, v, 2);
 		bat = (uint16_t)((uint16_t) v[0] << 8 ) | v[1];
 		TotalV = (4 * GAIN14 * bat + 1000/2 )/1000 + (TotalCells * Offset);   /*  整数四舍五入 1000/2 */
@@ -231,11 +234,11 @@ static void BQ_GetTotalV(void)
 3.延迟 100 μs*/
 /* 过流保护： 1.设计目标：11A 过流保护
 2.换算成电压：11A × 4mΩ(采样电阻) = 44mV
-3.延迟 320 μs*/
+3.延迟 320 ms*/
 static void BQ_ConfigProtect(void)
 {
-		uint8_t OV_TRIP_FULL;
-		uint8_t UV_TRIP_FULL;
+		uint8_t OV_TRIP_FULL = 0;
+		uint8_t UV_TRIP_FULL = 0;
 		float t = GAIN14/1000.0f;   									/* μV 换 m V */
 		OV_TRIP_FULL = (uint8_t)((((unsigned int)((OV_THRESHOLD - Offset)/t + 0.5f)) >> 4 )& 0xFF);  /* 浮点数四舍五入公式：`float_val + 0.5f`，再强制转为整数。 过压：4300mV */
 		UV_TRIP_FULL = (uint8_t)((((unsigned int)((UV_THRESHOLD - Offset)/t + 0.5f)) >> 4 )& 0xFF);		/* 欠压：2500mV */
@@ -263,8 +266,8 @@ static HAL_StatusTypeDef BQ_WriteReg(uint8_t reg, uint8_t val)
 //static HAL_StatusTypeDef BQ_ReadReg(uint8_t reg, uint8_t *val)
 //{
 //		HAL_StatusTypeDef I2C_Read_Status;
-//		uint8_t buf[2];
-//		uint8_t frame[2];
+//		uint8_t buf[2] = { 0 };
+//		uint8_t frame[2] = { 0 };
 //		I2C_Read_Status = HAL_I2C_Mem_Read(&hi2c1, BQ_Address, reg, I2C_MEMADD_SIZE_8BIT, buf, 2, 100);
 //		
 //		if(I2C_Read_Status != HAL_OK)
@@ -287,9 +290,9 @@ static HAL_StatusTypeDef BQ_WriteReg(uint8_t reg, uint8_t val)
 static HAL_StatusTypeDef BQ_ReadBlock(uint8_t reg, uint8_t *data, uint8_t len)
 {		
 		HAL_StatusTypeDef I2C_Read_Status;
-		uint8_t raw[8];
-		uint8_t i;
-		uint8_t frame[2];
+		uint8_t raw[8]  = { 0 };
+		uint8_t i = 0;
+		uint8_t frame[2]  = { 0 };
 	
 		if(len > 4)
 			return HAL_ERROR;
@@ -327,8 +330,8 @@ unsigned char key
 就是 CRC 多项式，BQ76940 固定填 `0x07`*/
 static unsigned char CRC8(unsigned char *ptr, unsigned char len, unsigned char key)
 {
-    unsigned char i;
-    unsigned char crc=0;
+    unsigned char i = 0;
+    unsigned char crc = 0;
     while(len--!=0)
     {
         for(i=0x80; i!=0; i/=2)
