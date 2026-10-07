@@ -4,6 +4,7 @@
 #include "i2c.h"
 #include "stdio.h"
 #include "math.h"
+#include "app_task.h"
 
 
 
@@ -28,8 +29,6 @@
 #define ADCOFFSET										0x51
 #define ADCGAIN1										0x50
 #define ADCGAIN2										0x59
-#define OV_THRESHOLD								4250    	/* 阈值，单位：mV */
-#define UV_THRESHOLD								2750			/* 阈值，单位：mV */
 #define VC1_HI											0x0C
 #define VC1_LO											0x0D
 #define CC_HI												0x32
@@ -42,6 +41,7 @@
 
 
 
+
 static void BQ_Wake(void);
 static void BQ_Config(void);
 static void BQ_Getoffset(void);
@@ -49,7 +49,7 @@ static void BQ_ConfigProtect(void);
 //static void BQ_GetCell1(void);
 static void BQ_GetAllCellV(void);
 static void BQ_GetCurr(void);
-static void BQ_GetTotalV(void);
+//static void BQ_GetTotalV(void);
 
 
 /* bsp */
@@ -57,12 +57,15 @@ static unsigned char CRC8(unsigned char *ptr, unsigned char len, unsigned char k
 static HAL_StatusTypeDef BQ_WriteReg(uint8_t reg, uint8_t val);
 //static HAL_StatusTypeDef BQ_ReadReg(uint8_t reg, uint8_t *val);
 static HAL_StatusTypeDef BQ_ReadBlock(uint8_t reg, uint8_t *date, uint8_t len);
-static const uint8_t cell_used[15] = {1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1};
+const uint8_t cell_used[15] = {1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1};   			/* 使用了的电池 */
 
 static uint16_t GAIN14;								/* 微伏 */
 static int8_t Offset;									/* 毫伏 */
 
-
+static const unsigned char BQ769_INITReg[12] = {SYS_STAT, CELLBAL1, CELLBAL2, CELLBAL3, SYS_CTRL1, SYS_CTRL2,
+																								PROTECT1, PROTECT2, PROTECT3, OV_TRIP, UV_TRIP, CC_CFG};
+static const unsigned char BQ769_INITdata[12] = {0xFF, 0x00, 0x00, 0x00, 0x18, 0x43,
+																								 0x00, 0x00, 0x00, 0x00, 0x00, 0x19};
 
 /*--------------------------------------------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------------------------------------------*/
@@ -75,11 +78,6 @@ void BQ_Init(void)
 		BQ_Config();
 		BQ_Getoffset();
 		BQ_ConfigProtect();
-//		uint8_t gain = 0;
-//		HAL_StatusTypeDef I2C_Status;
-//		I2C_Status = BQ_ReadReg(REG_ADCGAIN1, &gain);
-//		printf("\r\n状态： %d， 值：%02X\r\n", I2C_Status, gain);
-//		BQ_WriteReg(SYS_STAT, 0xFF);
 }
 
 
@@ -91,7 +89,6 @@ V(cell) = GAIN x ADC(cell) + OFFSET
 void BQ_GetAll(void)
 {
 		BQ_GetAllCellV();
-		BQ_GetTotalV();
 		BQ_GetCurr();
 }
 
@@ -119,21 +116,6 @@ void BQ_SHIP(void)
 /*--------------------------------------------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------------------------------------------*/
 
-/* 校准ADCOFFSET 
-ADC 增益偏移值，最低 3 位 ADCGAIN<4：0> 是针对 ADC 转换函数的生产校准值，单位
-为 μV/LSB。其范围为 365 μV/LSB 至 396 μV/LSB，步长为 1 μV/LSB，可按如下公
-式计算：GAIN = 365 μV/LSB + (ADCGAIN<4：0>以十进制形式表示的值) × (1 μV/LSB)
-ADCOFFSET；满量程输入范围为 -128 毫伏至 127 毫伏，最小二进制位为 1 毫伏。*/
-static void BQ_Getoffset(void)
-{
-		uint8_t Gain[2] = { 0 };
-		BQ_ReadBlock(ADCOFFSET, (uint8_t*)&Offset, 1);
-		BQ_ReadBlock(ADCGAIN1, &Gain[0], 1);
-	  BQ_ReadBlock(ADCGAIN2, &Gain[1], 1);
-		GAIN14 = 365 + ((Gain[0] & 0x0C) << 1 | (Gain[1] & 0xE0) >> 5);
-		printf("Offset=%02d， GAIN=%02d\r\n", Offset, GAIN14);
-}
-
 /* 测量电流 */
 /* SYS_STAT (0x00)
 CC_READY（第 7 位）：表示新的库仑计数器读数已可用。
@@ -157,7 +139,7 @@ static void BQ_GetCurr(void)
 		BQ_ReadBlock(CC_HI, v, 2);
 		cc = (int16_t)((uint16_t) (v[0] << 8 ) | v[1] );				
 		Curr = (cc < 0) ? (cc * 2110 - 500) / 1000 : (cc * 2110 + 500) / 1000;				/* cc×8.44μV÷4mΩ×1000 = cc×2110μA。 整数四舍五入 1000/2 = 500， 解决负数四舍五入问题*/
-		printf("cc=%d，电流：%dmA\r\n", cc, Curr);			
+		g_bms.Cur_ma = Curr;			
 }
 
 /* 测量温度 */
@@ -167,13 +149,13 @@ void BQ_GetTem(void)
 {
 		float VTSX = 0;
 		float RTS = 0;
-		int Tem = 0;
+		float Tem = 0;
 		uint8_t v[2] = { 0 };
 		BQ_ReadBlock(TS1_HI, v, 2);
 		VTSX = ((uint16_t)((uint16_t)(v[0] & 0x3F)) << 8 | v[1] ) * 0.382f;			/* 382是uV */
 		RTS = (10000.0f * VTSX) / (3300.f - VTSX);															/* 3.3是V */
-		Tem = 1 / (1 / (273.15 + 25)+(log(RTS / 10000)) / 3380)- 273.15 + 0.5;	/*	NTC 热敏电阻 B 值公式 */
-		printf("Tem = %d\r\n", Tem);
+		Tem = 1 / (1 / (273.15f + 25.0f)+(log(RTS / 10000.0f)) / 3380.0f)- 273.15f;				/*	NTC 热敏电阻 B 值公式 */
+		g_bms.TemX10 = (int) (Tem * 10 + (((Tem >= 0) ? 0.5f : -0.5f)));
 }
 
 /* 读所有电池电压 */
@@ -190,14 +172,13 @@ static void BQ_GetAllCellV(void)
 			BQ_ReadBlock(VC_HI, v, 2);
 			adc14 = ((uint16_t) (v[0] & 0x3F) << 8 ) | v[1];
 			V_val = (GAIN14 * adc14 + 1000/2 )/1000 + Offset;   /*  整数四舍五入 1000/2 */
-			printf("Cell%d = %dmV\r\n", i + 1 , V_val);
+			g_bms.Cell_mv[i] = V_val;
 			if(cell_used[i])
 				V_total += V_val;
 			VC_HI += 2;
 			VC_LO += 2;
 		}
-		printf("V_total = %dmV\r\n", V_total);
-		
+		g_bms.Total_mv = V_total;	
 }
 
 ///* 读Cell1电压 */
@@ -212,21 +193,21 @@ static void BQ_GetAllCellV(void)
 //		printf("Cell1 = %dmV\r\n", V_val);
 //}
 
-/* 读总电压 */
-/* V(BAT) = 4 × GAIN × ADC(cell) + (#Cells × OFFSET)。
-其中，GAIN以μV/LSB为单位存储，OFFSET以mV为单位存储。 */
-static void BQ_GetTotalV(void)
-{
-		int TotalV = 0;
-		uint16_t bat = 0;
-		uint8_t v[2] = { 0 };
-		BQ_ReadBlock(BAT_HI, v, 2);
-		bat = (uint16_t)((uint16_t) v[0] << 8 ) | v[1];
-		TotalV = (4 * GAIN14 * bat + 1000/2 )/1000 + (TotalCells * Offset);   /*  整数四舍五入 1000/2 */
-		printf("TotalV = %dmV\r\n", TotalV);
-}
+///* 读总电压 */
+///* V(BAT) = 4 × GAIN × ADC(cell) + (#Cells × OFFSET)。
+//其中，GAIN以μV/LSB为单位存储，OFFSET以mV为单位存储。 */
+//static void BQ_GetTotalV(void)
+//{
+//		int TotalV = 0;
+//		uint16_t bat = 0;
+//		uint8_t v[2] = { 0 };
+//		BQ_ReadBlock(BAT_HI, v, 2);
+//		bat = (uint16_t)((uint16_t) v[0] << 8 ) | v[1];
+//		TotalV = (4 * GAIN14 * bat + 1000/2 )/1000 + (TotalCells * Offset);   /*  整数四舍五入 1000/2 */
+//		printf("TotalV = %dmV\r\n", TotalV);
+//}
 
-/* 写寄存器，设置AFE保护 
+/* AFE保护 硬件层面
 (a) OV_TRIP_FULL = (OV– ADCOFFSET) ÷ ADCGAIN
 (b) UV_TRIP_FULL = (UV– ADCOFFSET) ÷ ADCGAIN*/
 /* 短路保护： 1.设计目标：25A 短路保护
@@ -246,6 +227,21 @@ static void BQ_ConfigProtect(void)
 		BQ_WriteReg(UV_TRIP, UV_TRIP_FULL);
 		BQ_WriteReg(PROTECT1, 0x0F); 
 		BQ_WriteReg(PROTECT2, 0x5D); 
+}
+
+/* 校准ADCOFFSET 
+ADC 增益偏移值，最低 3 位 ADCGAIN<4：0> 是针对 ADC 转换函数的生产校准值，单位
+为 μV/LSB。其范围为 365 μV/LSB 至 396 μV/LSB，步长为 1 μV/LSB，可按如下公
+式计算：GAIN = 365 μV/LSB + (ADCGAIN<4：0>以十进制形式表示的值) × (1 μV/LSB)
+ADCOFFSET；满量程输入范围为 -128 毫伏至 127 毫伏，最小二进制位为 1 毫伏。*/
+static void BQ_Getoffset(void)
+{
+		uint8_t Gain[2] = { 0 };
+		BQ_ReadBlock(ADCOFFSET, (uint8_t*)&Offset, 1);
+		BQ_ReadBlock(ADCGAIN1, &Gain[0], 1);
+	  BQ_ReadBlock(ADCGAIN2, &Gain[1], 1);
+		GAIN14 = 365 + ((Gain[0] & 0x0C) << 1 | (Gain[1] & 0xE0) >> 5);
+		printf("Offset=%02d， GAIN=%02d\r\n", Offset, GAIN14);
 }
 
 /* 写寄存器 */
@@ -356,10 +352,6 @@ static unsigned char CRC8(unsigned char *ptr, unsigned char len, unsigned char k
 /* 初始化BQ寄存器 */
 static void BQ_Config(void)
 {
-		const unsigned char BQ769_INITReg[12] = {SYS_STAT, CELLBAL1, CELLBAL2, CELLBAL3, SYS_CTRL1, SYS_CTRL2,
-																										PROTECT1, PROTECT2, PROTECT3, OV_TRIP, UV_TRIP, CC_CFG};
-		const unsigned char BQ769_INITdata[12] = {0xFF, 0x00, 0x00, 0x00, 0x18, 0x43,
-																										 0x00, 0x00, 0x00, 0x00, 0x00, 0x19};
 		char i;
 		for(i=0; i<12; i++)
 		{

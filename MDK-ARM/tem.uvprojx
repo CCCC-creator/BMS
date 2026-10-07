@@ -906,6 +906,11 @@
               <FileType>1</FileType>
               <FilePath>..\Bsp\dwt.c</FilePath>
             </File>
+            <File>
+              <FileName>protect.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Bsp\protect.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

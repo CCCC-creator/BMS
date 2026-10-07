@@ -4,10 +4,9 @@
 #include "stdio.h"
 #include "app_task.h"
 #include "bq76940.h"
+#include "protect.h"
 
-//typedef struct {
-//				
-//}
+volatile SampleDate g_bms;
 
 /*空闲任务*/
 void vApplicationGetIdleTaskMemory( StaticTask_t **ppxIdleTaskTCBBuffer, 
@@ -68,6 +67,10 @@ void LEDTask(void *pvParameters)
 				if(cycle % 8 == 0)																	/* 2s采集温度 */
 				{
 						BQ_GetTem();
+						for (int i = 0; i < 15; i++)
+								printf("Cell%d = %dmV\r\n", i + 1 , g_bms.Cell_mv[i]);
+						printf("V_total = %dmV\r\n", g_bms.Total_mv);
+						printf("I=%dmA，T=%d.%d\r\n", g_bms.Cur_ma, g_bms.TemX10 / 10, g_bms.TemX10 % 10);
 						cycle = 0;
 				}
 				vTaskDelay(pdMS_TO_TICKS(250));
@@ -75,5 +78,22 @@ void LEDTask(void *pvParameters)
 				SampleGetStack = uxTaskGetStackHighWaterMark(NULL);
 				printf("SampleTask：%lu字\r\n", SampleGetStack);
 #endif			
+		}
+}
+
+void ProtectTask(void *pvParameters)
+{
+		(void)pvParameters;
+#if TASK_DEBUG
+		static UBaseType_t ProtectGetStack = 0;
+#endif
+		while(1)
+		{
+				Protect();
+#if TASK_DEBUG
+				ProtectGetStack = uxTaskGetStackHighWaterMark(NULL);
+				printf("ProtectTask：%lu字\r\n", ProtectGetStack);
+#endif
+				vTaskDelay(pdMS_TO_TICKS(500));												
 		}
 }
