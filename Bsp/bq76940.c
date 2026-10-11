@@ -5,15 +5,15 @@
 #include "stdio.h"
 #include "math.h"
 #include "app_task.h"
-
+#include "stdbool.h"
 
 
 #define BQ_Address								(0x08<<1)
 #define REG_ADCGAIN1								0x50
-#define BIT_SHUT_B								(1 << 0)
-#define BIT_SHUT_A								(1 << 1)
-#define BIT_TEMP_SEL							(1 << 3)
-#define BIT_ADC_EN								(1 << 4)
+#define BIT_SHUT_B								(1U << 0)
+#define BIT_SHUT_A								(1U << 1)
+#define BIT_TEMP_SEL							(1U << 3)
+#define BIT_ADC_EN								(1U << 4)
 #define SYS_STAT										0x00
 #define CELLBAL1										0x01
 #define CELLBAL2										0x02
@@ -39,6 +39,11 @@
 #define TS1_HI 											0x2C
 //#define	TS1_LO  										0x2D
 
+/* 硬件保护 */
+#define OV_THRESHOLD								4400    	/* 阈值，单位：mV */
+#define UV_THRESHOLD								2600			/* 阈值，单位：mV */
+#define OC_THRESHOLD								11000			/* 阈值，单位：mA */
+#define	SC_THRESHOLD								25000			/* 阈值，单位：mA */
 
 
 
@@ -54,18 +59,17 @@ static void BQ_GetCurr(void);
 
 /* bsp */
 static unsigned char CRC8(unsigned char *ptr, unsigned char len, unsigned char key);
-static HAL_StatusTypeDef BQ_WriteReg(uint8_t reg, uint8_t val);
 //static HAL_StatusTypeDef BQ_ReadReg(uint8_t reg, uint8_t *val);
 static HAL_StatusTypeDef BQ_ReadBlock(uint8_t reg, uint8_t *date, uint8_t len);
 const uint8_t cell_used[15] = {1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1};   			/* 使用了的电池 */
 
-static uint16_t GAIN14;								/* 微伏 */
-static int8_t Offset;									/* 毫伏 */
+static uint16_t GAIN14;														/* 微伏 */
+static int8_t Offset;															/* 毫伏 */
 
-static const unsigned char BQ769_INITReg[12] = {SYS_STAT, CELLBAL1, CELLBAL2, CELLBAL3, SYS_CTRL1, SYS_CTRL2,
-																								PROTECT1, PROTECT2, PROTECT3, OV_TRIP, UV_TRIP, CC_CFG};
-static const unsigned char BQ769_INITdata[12] = {0xFF, 0x00, 0x00, 0x00, 0x18, 0x43,
-																								 0x00, 0x00, 0x00, 0x00, 0x00, 0x19};
+static const unsigned char BQ_INITReg[12] = {SYS_STAT, CELLBAL1, CELLBAL2, CELLBAL3, SYS_CTRL1, SYS_CTRL2,
+																						PROTECT1, PROTECT2, PROTECT3, OV_TRIP, UV_TRIP, CC_CFG};
+static const unsigned char BQ_INITdata[12] = {0xFF, 0x00, 0x00, 0x00, 0x18, 0x43,
+																							0x00, 0x00, 0x00, 0x00, 0x00, 0x19};
 
 /*--------------------------------------------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------------------------------------------*/
@@ -97,7 +101,7 @@ void BQ_GetAll(void)
 void BQ_Control(void)
 {
 		
-
+		
 }
 
 
@@ -107,7 +111,7 @@ void BQ_Control(void)
 /* BQ休眠模式SHIP。调用后 I2C 失效，唤醒需 PA8 上升沿脉冲 */
 void BQ_SHIP(void)
 {
-		BQ_WriteReg(SYS_CTRL1, BIT_ADC_EN | BIT_TEMP_SEL | BIT_SHUT_B);
+		BQ_WriteReg(SYS_CTRL1, BIT_ADC_EN | BIT_TEMP_SEL | BIT_SHUT_B);					/* TEMP_SEL = 1：TS 寄存器读取外部 NTC 热敏电阻 */
 		HAL_Delay(20);
 		BQ_WriteReg(SYS_CTRL1, BIT_ADC_EN | BIT_TEMP_SEL | BIT_SHUT_A);
 }
@@ -130,7 +134,8 @@ CC15:8（位 7 - 0）：库仑计数器的上 8 位最高有效位。
 d CC7:0（位 7 - 0）：库仑计数器的下 8 位最低有效位 */
 /* CC：16 位有符号数（补码） */
 /* CC Reading (in μV) = [16-bit 2’s Complement Value] × (8.44 μV/LSB)
-CC读数（单位：μV）= [16位二进制补码值] × (8.44 μV/LSB) */ 
+CC读数（单位：μV）= [16位二进制补码值] × (8.44 μV/LSB) 
+	250ms 采集一次*/ 
 static void BQ_GetCurr(void)
 {
 		uint8_t v[2] = { 0 };
@@ -144,7 +149,8 @@ static void BQ_GetCurr(void)
 
 /* 测量温度 */
 /*VTSX = (ADC in Decimal) x 382 μV/LSB
-RTS = (10,000 × VTSX) ÷ (3.3– VTSX) */
+RTS = (10,000 × VTSX) ÷ (3.3– VTSX) 
+	1s 采集一次*/
 void BQ_GetTem(void)
 {
 		float VTSX = 0;
@@ -158,7 +164,8 @@ void BQ_GetTem(void)
 		g_bms.TemX10 = (int) (Tem * 10 + (((Tem >= 0) ? 0.5f : -0.5f)));
 }
 
-/* 读所有电池电压 */
+/* 读所有电池电压及总电压
+	250ms 采集一次*/
 static void BQ_GetAllCellV(void)
 {
 		int V_val = 0;
@@ -245,7 +252,7 @@ static void BQ_Getoffset(void)
 }
 
 /* 写寄存器 */
-static HAL_StatusTypeDef BQ_WriteReg(uint8_t reg, uint8_t val)
+HAL_StatusTypeDef BQ_WriteReg(uint8_t reg, uint8_t val)
 {
 		uint8_t frame[3] = {BQ_Address, reg, val};
 		uint8_t buf[3] = {reg, val, CRC8(frame, 3, 0x07)};
@@ -298,7 +305,7 @@ static HAL_StatusTypeDef BQ_ReadBlock(uint8_t reg, uint8_t *data, uint8_t len)
 		if(I2C_Read_Status != HAL_OK)
 			return I2C_Read_Status;
 		
-		frame[0] = BQ_Address | 0x01;   									/* 按位与0x01 读 */
+		frame[0] = BQ_Address | 0x01;   										/* 按位与0x01 读 */
 		frame[1] = raw[0];
 		if(CRC8(frame, 2, 0x07) != raw[1])
 			return HAL_ERROR;
@@ -355,7 +362,7 @@ static void BQ_Config(void)
 		char i;
 		for(i=0; i<12; i++)
 		{
-				BQ_WriteReg(BQ769_INITReg[i], BQ769_INITdata[i]);
+				BQ_WriteReg(BQ_INITReg[i], BQ_INITdata[i]);
 		}
 }
 
@@ -368,3 +375,52 @@ static void BQ_Wake(void)
 		HAL_Delay(10);
 }
 
+/* RMW(读 - 改 - 写) 函数 注意：SYS_STAT 是“写 1 清除”型寄存器 修改位只适用于 BQ_WriteReg(SYS_STAT, mask) */
+/* 置1寄存器里的值的某一位 注意：reg_addr：寄存器的地址，不是寄存器里的值  mask:掩码 */
+bool SetBit(uint8_t reg_addr, uint8_t mask)
+{
+		uint8_t val = 0;																		/* val 装寄存器里的值 */
+		HAL_StatusTypeDef BQ_Readstatus;
+		HAL_StatusTypeDef BQ_Writestatus;
+		BQ_Readstatus = BQ_ReadBlock(reg_addr, &val, 1);
+		if(BQ_Writestatus != HAL_OK)
+			return false;
+		val |= mask;																				/* 寄存器里的值某一位置1 */
+		BQ_Writestatus = BQ_WriteReg(reg_addr, val);
+		if(BQ_Readstatus != HAL_OK)
+			return false;
+		return true;
+
+}
+
+/* 清零寄存器里的值的某一位 注意：reg_addr：寄存器的地址，不是寄存器里的值  mask:掩码 */
+bool ClearBit(uint8_t reg_addr, uint8_t mask)
+{
+		uint8_t val = 0;																		/* val 装寄存器里的值 */
+		HAL_StatusTypeDef BQ_Readstatus;
+		HAL_StatusTypeDef BQ_Writestatus;
+		BQ_Readstatus = BQ_ReadBlock(reg_addr, &val, 1);
+		if(BQ_Writestatus != HAL_OK)
+			return false;
+		val &= ~mask;																				/* 寄存器里的值某一位清零 */
+		BQ_Writestatus = BQ_WriteReg(reg_addr, val);
+		if(BQ_Readstatus != HAL_OK)
+			return false;
+		return true;
+}
+
+/* 翻转寄存器里的值的某一位 注意：reg_addr：寄存器的地址，不是寄存器里的值  mask:掩码 */
+bool ToggleBit(uint8_t reg_addr, uint8_t mask)
+{
+		uint8_t val = 0;																		/* val 装寄存器里的值 */
+		HAL_StatusTypeDef BQ_Readstatus;
+		HAL_StatusTypeDef BQ_Writestatus;
+		BQ_Readstatus = BQ_ReadBlock(reg_addr, &val, 1);
+		if(BQ_Writestatus != HAL_OK)
+			return false;
+		val ^= mask;																				/* 寄存器里的值某一位翻转 */
+		BQ_Writestatus = BQ_WriteReg(reg_addr, val);
+		if(BQ_Readstatus != HAL_OK)
+			return false;
+		return true;
+}
