@@ -6,6 +6,7 @@
 #include "math.h"
 #include "app_task.h"
 #include "stdbool.h"
+#include "iwdg.h"
 
 
 #define BQ_Address								(0x08<<1)
@@ -74,14 +75,23 @@ static const unsigned char BQ_INITdata[12] = {0xFF, 0x00, 0x00, 0x00, 0x18, 0x43
 /*--------------------------------------------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------------------------------------------*/
 
-/* BQ初始化 */
+/* BQ初始化
+ * 注意：IWDG 在本函数执行之前就已启动（main 里的 MX_IWDG_Init），
+ *       而唯一能喂狗的 MonitorTask 要等调度器启动、且首次确认心跳都在推进之后
+ *       才喂第一口 → 本函数全程处于"无人喂狗"区间。
+ *       所以这里必须分步喂：把最长空档从"整个初始化（最坏 2.3s）"
+ *       切成"单步（最长约 0.2s）"，3 秒超时才装得下；否则 I2C 异常时会复位循环。
+ * 顺序不可调换：ConfigProtect 的阈值公式要用 Getoffset 算出的 GAIN/Offset。 */
 void BQ_Init(void)
-{		
-		
+{			
 		BQ_Wake();
+		HAL_IWDG_Refresh(&hiwdg);
 		BQ_Config();
+		HAL_IWDG_Refresh(&hiwdg);
 		BQ_Getoffset();
+		HAL_IWDG_Refresh(&hiwdg);
 		BQ_ConfigProtect();
+		HAL_IWDG_Refresh(&hiwdg);
 }
 
 

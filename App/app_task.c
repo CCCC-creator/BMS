@@ -8,14 +8,12 @@
 #include "faulthandling.h"
 #include "dwt.h"
 #include "app_init.h"
+#include "monitor.h"
 
 
 volatile SampleDate g_bms;
+volatile Heartbeat hb;
 
-/* 任务心跳 */
-volatile uint32_t hb_led = 0;
-volatile uint32_t hb_sample = 0;
-volatile uint32_t hb_protect = 0;
 
 /* 空闲任务 */
 void vApplicationGetIdleTaskMemory( StaticTask_t **ppxIdleTaskTCBBuffer, 
@@ -41,9 +39,9 @@ void vApplicationGetTimerTaskMemory( StaticTask_t **ppxTimerTaskTCBBuffer, Stack
 
 
 /*--------------------------------------------------------------------------------------------------------------*/
-/*任务*/
+																									/*任务*/
 /*--------------------------------------------------------------------------------------------------------------*/
-/* LED500ms闪烁任务 */
+/* LED闪烁任务 500ms*/
 void LEDTask(void *pvParameters)
 {
 		(void)pvParameters;
@@ -66,11 +64,12 @@ void LEDTask(void *pvParameters)
 				printf("LEDTask剩余栈：%lu字  耗时：%lums\r\n", LEDGetStack_StackWater, (unsigned long)Cycle_ms);
 #endif
 				vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(500));										/* pdMS_TO_TICKS 把毫秒 (ms) 时间，转换成 FreeRTOS 的系统节拍 tick 计数值。 */
-				hb_led++;
+				hb.hb_LED++;
 		}
 }
 
-/* 采集任务 */
+/* 采集任务 250ms */
+/* IIC：单主 + 命令通道 多任务共享需要用互斥锁 */
  void SampleTask(void *pvParameters)
 {
 		(void)pvParameters;
@@ -87,11 +86,11 @@ void LEDTask(void *pvParameters)
 #if TASK_DEBUG
 				Cycle_start = xTaskGetTickCount();
 #endif
-				BQ_GetAll();
+				BQ_GetAll();																														/* 通过结构体传数据给PortectTask */
 				cycle ++;
 				if(cycle % 8 == 0)																											/* 采集温度芯片2s更新一次 2s打印一次数据 */
 				{
-						BQ_GetTem();
+						BQ_GetTem();																												/* 通过结构体传数据给PortectTask */
 						for (int i = 0; i < 15; i++)
 								printf("Cell%d = %dmV\r\n", i + 1 , g_bms.Cell_mv[i]);
 						printf("V_total = %dmV\r\n", g_bms.Total_mv);
@@ -105,10 +104,11 @@ void LEDTask(void *pvParameters)
 				printf("SampleTask剩余栈：%lu字  耗时：%lums\r\n", SampleGetStack_StackWater, (unsigned long)Cycle_ms);
 #endif			
 				vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(250));
-				hb_sample++;
+				hb.hb_sample++;
 		}
 }
 
+/* 故障检测与处理任务 250ms */
 void PortectTask(void *pvParameters)
 {
 		(void)pvParameters;
@@ -126,7 +126,7 @@ void PortectTask(void *pvParameters)
 #endif
 						if(g_bms.ready)																	/* 判断是否故障与处理 */																							/* 判断第一轮SampleTask是否结束 */
 						{
-							FaultCheck();																				
+							FaultHandling(FaultCheck());									/* 故障检测后传数据给故障处理 */																				
 #if TASK_DEBUG
 							Cycle_ms = (uint32_t)(xTaskGetTickCount() - Cycle_start) * portTICK_PERIOD_MS;
 							PortectTask_StackWater = uxTaskGetStackHighWaterMark(NULL);
@@ -134,6 +134,32 @@ void PortectTask(void *pvParameters)
 #endif
 						}
 						vTaskDelayUntil(&xLastWakeTime,pdMS_TO_TICKS(250));
-						hb_protect++;
+						hb.hb_protect++;
+			}
+}
+
+/* 看门狗任务 1000ms */
+void MonitorTask(void *pvParameters)
+{
+		(void)pvParameters;
+		static TickType_t xLastWakeTime;
+		xLastWakeTime	= xTaskGetTickCount();																			/* 记录上一次唤醒的 tick 计数 */
+#if TASK_DEBUG
+		static UBaseType_t MonitorGetStack_StackWater = 0;
+		TickType_t Cycle_start;																										/* 耗時測量：DWT 周期计数器在这颗片子上没跑（CYCCNT 静止），改用系统节拍（1ms 分辨率） */
+		uint32_t Cycle_ms = 0;
+#endif
+			while(1)
+			{
+#if TASK_DEBUG
+				Cycle_start = xTaskGetTickCount();
+#endif
+				Monitor();
+#if TASK_DEBUG
+				Cycle_ms = (uint32_t)(xTaskGetTickCount() - Cycle_start) * portTICK_PERIOD_MS;
+				MonitorGetStack_StackWater = uxTaskGetStackHighWaterMark(NULL);
+				printf("MonitorTask剩余栈：%lu字  耗时：%lums\r\n", MonitorGetStack_StackWater, (unsigned long)Cycle_ms);
+#endif
+				vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(1000));				
 			}
 }

@@ -75,7 +75,7 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-
+	__HAL_DBGMCU_FREEZE_IWDG();					/* 在调试时自动冻结，内核暂停时冻结IWDG */
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/

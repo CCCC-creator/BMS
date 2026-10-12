@@ -7,19 +7,10 @@
 #define DSG_ON													(1U << 1)						/* 充电MOS开启 */		
 #define CHG_ON													(1U << 0)						/* 放电MOS开启 */
 
-///* 故障标志 */
-//#define FLAG_OV											(1U << 0)							/* 过压 */
-//#define FLAG_UV											(1U << 1)							/* 欠压 */
-//#define FLAG_COC										(1U << 2)							/* 充电过流 */
-//#define FLAG_DOC										(1U << 3)							/* 放电过流 */
-//#define FLAG_SC											(1U << 4)							/* 短路 */
-//#define FLAG_OT											(1U << 5)							/* 过温 */
-//#define FLAG_UT											(1U << 6)							/* 低温 */
 
-
-/* 充电 MOS = 要断充电 ? 断 : 通放电 MOS = 要断放电 ? 断 : 通 
-多个故障同时发生怎么办 安全原则自动裁决：只要有一个故障说要关，就关*/
+/* 安全原则自动裁决：只要有一个故障说要关，就关 */
 /* 故障处理 过压 欠压 充电过流 放电过流 短路 过温 低温 */
+/* 通过消息队列发送给SampleTask */
 void FaultHandling(uint8_t flags)
 {
 	

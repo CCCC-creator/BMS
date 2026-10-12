@@ -8,7 +8,8 @@
 /*    Debug开关    */
 #define TASK_DEBUG														0
 
-
+#define DSG_ON													(1U << 1)						/* 充电MOS开启 */		
+#define CHG_ON													(1U << 0)						/* 放电MOS开启 */
 
 typedef struct {
 		int Cell_mv[15];
@@ -18,8 +19,15 @@ typedef struct {
 		uint8_t ready;
 } SampleDate;
 
+/* 任务心跳 */
+typedef struct {
+			uint32_t hb_LED;
+			uint32_t hb_sample;
+			uint32_t hb_protect;
+} Heartbeat;
 
 extern volatile SampleDate g_bms;
+extern volatile Heartbeat hb;
 
 
 
@@ -31,5 +39,7 @@ extern volatile SampleDate g_bms;
 void LEDTask(void *pvParameters);
 void SampleTask(void *pvParameters);
 void PortectTask(void *pvParameters);
+void MonitorTask(void *pvParameters);
+
 
 #endif
