@@ -53,7 +53,8 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
+static volatile const char * assert_file;
+static volatile unsigned long assert_line;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -101,8 +102,8 @@ int main(void)
   MX_I2C1_Init();
   MX_IWDG_Init();
   /* USER CODE BEGIN 2 */
+				
 	BQ_Init();
-
 	App_Init();
   vTaskStartScheduler();
   /* USER CODE END 2 */
@@ -159,17 +160,22 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-/* FreeRTOS 内部大量 `configASSERT(条件)`，**条件为假就触发断言，调用 vAssertCalled***/
+/* FreeRTOS 内部大量 configASSERT(条件)，条件为假就触发断言，调用 vAssertCalled */
+/* pcFile：__FILE__，C 语言预定义宏，代表当前源码文件名（字符串）
+ulLine：__LINE__，C 语言预定义宏，代表当前代码行号 */
 void vAssertCalled( const char * pcFile, unsigned long ulLine )
 {
-  ( void )pcFile;
-  ( void )ulLine;
+  assert_file = pcFile;
+  assert_line = ulLine;
+	(void)assert_file;
+	(void)assert_line;
   __disable_irq();
   while (1)
   {
   }
 }
 
+/* printf重定向 */
 int fputc(int ch, FILE *f)
 {
     HAL_UART_Transmit(&huart1, (uint8_t *)&ch, 1, 100);

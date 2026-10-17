@@ -1033,6 +1033,11 @@
               <FileType>1</FileType>
               <FilePath>..\Bsp\monitor.c</FilePath>
             </File>
+            <File>
+              <FileName>soc.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Bsp\soc.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

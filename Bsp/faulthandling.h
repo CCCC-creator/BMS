@@ -6,6 +6,7 @@
 
 
 void FaultHandling(uint8_t flags);
+void ClearFaultStatus(void);
 
 #endif
 

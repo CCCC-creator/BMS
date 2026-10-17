@@ -21,9 +21,10 @@
 #define UT_RECOVER_X10    					30      	  /* 3.0°C 恢复 */
 
 /* 过滤噪声 */
+/* 快断慢合——故障越危险，断得越快、合得越慢 */
 #define CONFIRM_N_SHORT										1
 #define CONFIRM_M_SHORT										20		/* 短路解除时间：250ms * 20 = 5s */
-#define CONFIRM_N_VLT											3
+#define CONFIRM_N_VLT											3			  
 #define CONFIRM_N_CURR										4
 #define CONFIRM_M_CURR      							8			/* 过流解除时间：250ms * 8 = 2s */
 #define CONFIRM_N_TEMP										24
@@ -268,6 +269,7 @@ uint8_t FaultCheck(void)
 		if(edges & FLAG_UT)																			
 			printf((out & FLAG_UT) ? "低温故障\r\n" : "低温已解除\r\n");
 		
+		g_bms.fault = out;
 		prev = out;
 		return out;
 }
