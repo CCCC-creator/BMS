@@ -28,7 +28,6 @@
 /* USER CODE BEGIN Includes */
 #include "FreeRTOS.h"
 #include "task.h"
-#include "DWT.h"
 #include "app_task.h"
 #include "stdio.h"
 #include "bq76940.h"
@@ -85,7 +84,7 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-  DWT_Init();
+
   /* USER CODE END Init */
 
   /* Configure the system clock */

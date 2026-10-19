@@ -10,6 +10,7 @@
 #include "FreeRTOS.h"
 #include "semphr.h"
 #include "app_init.h"
+#include "stdlib.h"
 
 
 #define BQ_Address								(0x08<<1)
@@ -43,8 +44,10 @@
 #define TS1_HI 											0x2C
 //#define	TS1_LO  										0x2D
 
+
+
 /* 硬件保护 */
-#define OV_THRESHOLD								4400    	/* 阈值，单位：mV */
+#define OV_THRESHOLD								4300    	/* 阈值，单位：mV */
 #define UV_THRESHOLD								2600			/* 阈值，单位：mV */
 #define OC_THRESHOLD								11000			/* 阈值，单位：mA */
 #define	SC_THRESHOLD								25000			/* 阈值，单位：mA */
@@ -156,14 +159,14 @@ static void BQ_GetCurr(void)
 		int cc = 0;
 		int Curr = 0;
 		if(BQ_ReadBlock(CC_HI, v, 2) == HAL_OK)								/*  如果读取失败，直接丢弃，保持上一轮的值 */
-		{			
+		{	
 			cc = (int16_t)((uint16_t) (v[0] << 8 ) | v[1] );
 /* I(μA) = cc × k，k 为实测标定值
    理论值：8.44μV/LSB ÷ 4mΩ = 2.11mA/计数 = 2110μA  ← 与实物不符（实测偏大 1.67×）
    实测标定(2026-10-13)：负载 470Ω(万用表实测 460Ω)、V_load=34.9V → I_真=75.8mA
                         对应 cc=59 → k = 75.8mA/59 = 1.259mA/计数 = 1285μA */
-		Curr = (cc < 0) ? (cc * 1259 - 500) / 1000 : (cc * 1259 + 500) / 1000;				/* (cc×8.44μV)÷4mΩ×1000 = cc×2110μA。(cc×8.44μV)÷4mΩ 单位：mA。代码要用整数运算，×1000把最小单位取成μA。整数四舍五入 1000/2 = 500， 解决负数四舍五入问题 */
-		g_bms.Cur_ma = Curr;
+			Curr = (cc < 0) ? (cc * 1259 - 500) / 1000 : (cc * 1259 + 500) / 1000;				/* (cc×8.44μV)÷4mΩ×1000 = cc×2110μA。(cc×8.44μV)÷4mΩ 单位：mA。代码要用整数运算，×1000把最小单位取成μA。整数四舍五入 1000/2 = 500， 解决负数四舍五入问题 */
+			g_bms.Cur_ma = Curr;		
 		}			
 }
 
@@ -282,8 +285,13 @@ HAL_StatusTypeDef BQ_WriteReg(uint8_t reg, uint8_t val)
 		HAL_StatusTypeDef I2C_Write_Status = HAL_ERROR;
 		BaseType_t locked = pdFAIL;
 		if (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED)							/* 调度器未启动就不获取互斥量，直接执行I2C，在调度器未启动前不会出现抢占I2C情况 */
-			locked = (xSemaphoreTake(I2C_Mutex, pdMS_TO_TICKS(250)) == pdPASS);
-			I2C_Write_Status = HAL_I2C_Master_Transmit(&hi2c1, BQ_Address, buf, 3, 100 );
+		{
+			if(xSemaphoreTake(I2C_Mutex, pdMS_TO_TICKS(250)) != pdPASS)						
+				return HAL_BUSY;																										/* 调度器启动后I2C被占用，返回HAL_BUSY */
+			locked = 1;																														/* 调度器启动后I2C没有被占用 */
+		}
+/* BQ_Init()调度器没启动也可以执行 */		
+		I2C_Write_Status = HAL_I2C_Master_Transmit(&hi2c1, BQ_Address, buf, 3, 100 );
 		if(locked)	
 			xSemaphoreGive(I2C_Mutex);
 	
@@ -337,8 +345,12 @@ HAL_StatusTypeDef BQ_ReadBlock(uint8_t reg, uint8_t *data, uint8_t len)
 			return HAL_ERROR;
 		
 		if (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED)							/* 调度器未启动就不获取互斥量，直接执行I2C，在调度器未启动前不会出现抢占I2C情况 */
-			locked = (xSemaphoreTake(I2C_Mutex, pdMS_TO_TICKS(250)) == pdPASS);	
-		
+		{
+				if(xSemaphoreTake(I2C_Mutex, pdMS_TO_TICKS(250)) != pdPASS)					
+					return HAL_BUSY;																									/* 调度器启动后I2C被占用，返回HAL_BUSY */
+				locked = 1;																													/* 调度器启动后I2C没有被占用 */
+		}
+/* BQ_Init()调度器没启动也可以执行 */		
 		I2C_Read_Status = HAL_I2C_Mem_Read(&hi2c1, BQ_Address, reg, I2C_MEMADD_SIZE_8BIT, raw, len * 2, 100);
 		
 		if(I2C_Read_Status != HAL_OK)
@@ -436,6 +448,18 @@ static void BQ_Wake(void)
 		HAL_Delay(10);
 }
 
+/* 执行开关均衡 */
+bool BQ_SetBalanceMask(uint16_t mask)
+{
+	if(BQ_WriteReg(CELLBAL1, (mask & 0x1F)) != HAL_OK)									/* 每个CELLBAL的低5位有效 */
+		return false;
+	if(BQ_WriteReg(CELLBAL2, ((mask >> 5) & 0x1F)) != HAL_OK)
+		return false;
+	if(BQ_WriteReg(CELLBAL3, ((mask >> 10) & 0x1F)) != HAL_OK)
+		return false;
+	return true;
+}
+
 /* RMW(读 - 改 - 写) 函数 注意：SYS_STAT 是“写 1 清除”型寄存器 因为读出来的故障位是1， 然后重新写进去的也是1，
 如果只是想清除一个位需要置1，但是读出来的不想清除的故障位也是1，又一起写进去了，把这个位也清除了
 修改位只适用于 BQ_WriteReg(SYS_STAT, mask),写0不变不清除 */
@@ -450,7 +474,6 @@ bool SetBit(uint8_t reg_addr, uint8_t mask)
 		if(BQ_WriteReg(reg_addr, val) != HAL_OK)
 			return false;
 		return true;
-
 }
 
 /* 清零寄存器里的值的某一位 注意：reg_addr：寄存器的地址，不是寄存器里的值  mask:掩码 */

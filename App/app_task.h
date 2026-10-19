@@ -29,6 +29,7 @@ typedef struct {
 		uint32_t hb_sample;
 		uint32_t hb_protect;
 		uint32_t hb_soc;
+		uint32_t hb_Balancing;
 } Heartbeat;
 
 extern volatile SampleDate g_bms;
@@ -46,6 +47,6 @@ void SampleTask(void *pvParameters);
 void PortectTask(void *pvParameters);
 void MonitorTask(void *pvParameters);
 void SOCTask(void *pvParameters);
-
+void BalancingTask(void *pvParameters);
 
 #endif

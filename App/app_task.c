@@ -6,11 +6,11 @@
 #include "bq76940.h"
 #include "faultcheck.h"
 #include "faulthandling.h"
-#include "dwt.h"
 #include "app_init.h"
 #include "monitor.h"
 #include "i2c.h"
 #include "soc.h"
+#include "balancing.h"
 
 
 volatile SampleDate g_bms;
@@ -41,7 +41,7 @@ void vApplicationGetTimerTaskMemory( StaticTask_t **ppxTimerTaskTCBBuffer, Stack
 
 
 /*--------------------------------------------------------------------------------------------------------------*/
-																									/*任务*/
+																									/* 任务 */
 /*--------------------------------------------------------------------------------------------------------------*/
 /* LED闪烁任务 500ms*/
 void LEDTask(void *pvParameters)
@@ -181,8 +181,36 @@ void SOCTask(void *pvParameters)
 		SOCTask_StackWater = uxTaskGetStackHighWaterMark(NULL);
 		printf("SOCTask剩余栈：%lu字  耗时：%lums\r\n", SOCTask_StackWater, (unsigned long)Cycle_ms);
 #endif
+		hb.hb_soc++;	
 		vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(1000));										/* pdMS_TO_TICKS 把毫秒 (ms) 时间，转换成 FreeRTOS 的系统节拍 tick 计数值。 */
-		hb.hb_soc++;
+		}
+}
+
+/* 被动均衡任务 250ms*/
+void BalancingTask(void *pvParameters)
+{
+		(void)pvParameters;
+		static TickType_t xLastWakeTime;
+		xLastWakeTime	= xTaskGetTickCount();																			/* 记录上一次唤醒的 tick 计数 */
+#if TASK_DEBUG
+		UBaseType_t BalancingGetStack_StackWater = 0;
+		TickType_t Cycle_start;																										
+		uint32_t Cycle_ms = 0;
+#endif
+		while(1)
+		{
+#if TASK_DEBUG
+				Cycle_start = xTaskGetTickCount();
+#endif
+		BQ_Balancing();	
+			
+#if TASK_DEBUG
+		Cycle_ms = (uint32_t)(xTaskGetTickCount() - Cycle_start);
+		BalancingGetStack_StackWater = uxTaskGetStackHighWaterMark(NULL);
+		printf("BalancingTask剩余栈：%lu字  耗时：%lums\r\n", BalancingGetStack_StackWater, (unsigned long)Cycle_ms);
+#endif
+		hb.hb_Balancing++;
+		vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(250));										
 		}
 }
 

@@ -1014,11 +1014,6 @@
               <FilePath>..\Bsp\bq76940.c</FilePath>
             </File>
             <File>
-              <FileName>dwt.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Bsp\dwt.c</FilePath>
-            </File>
-            <File>
               <FileName>faultcheck.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Bsp\faultcheck.c</FilePath>
@@ -1037,6 +1032,11 @@
               <FileName>soc.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Bsp\soc.c</FilePath>
+            </File>
+            <File>
+              <FileName>balancing.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Bsp\balancing.c</FilePath>
             </File>
           </Files>
         </Group>
