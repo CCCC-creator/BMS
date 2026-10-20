@@ -16,7 +16,7 @@
 #endif
 
 /* 1=当前有均衡在跑（供 FaultCheck 跳过不可信的软件 SC） */
-volatile uint8_t g_balancing_active = 0;
+volatile uint8_t g_balancing_active = 0 ;
 
 static bool find_min_max(int* min_mv, int* max_mv);
 

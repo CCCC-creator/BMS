@@ -7,7 +7,12 @@
 
 
 /*    Debug开关    */
-#define TASK_DEBUG													0
+#define DEBUG_LED      											0
+#define DEBUG_SAMPLE    										0
+#define DEBUG_PROTECT   										0
+#define DEBUG_SOC       										0
+#define DEBUG_BALANCING 										0
+#define DEBUG_MONITOR   										0
 	
 #define CHG_Bit													(1U << 0)						/* 充电MOS位 */
 #define DSG_Bit													(1U << 1)						/* 放电MOS位 */

@@ -110,7 +110,7 @@ void Init_SOC(void)
 		if(SOC_OCV(min_mv))
 		{
 			soc_acc = 0.0f;																																	/* OCV得出新的SOC，清零soc_acc重新累加 */
-			printf("OCV锚定SOC：%d.%d\r\n", g_bms.socX10 / 10, g_bms.socX10 % 10);	
+			printf("OCV锚定SOC：%d.%d%%\r\n", g_bms.socX10 / 10, g_bms.socX10 % 10);	
 			last_mv = min_mv;
 		}
 		else

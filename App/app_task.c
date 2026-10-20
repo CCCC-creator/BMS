@@ -49,18 +49,18 @@ void LEDTask(void *pvParameters)
 		(void)pvParameters;
 		static TickType_t xLastWakeTime;
 		xLastWakeTime	= xTaskGetTickCount();																			/* 记录上一次唤醒的 tick 计数 */
-#if TASK_DEBUG
+#if DEBUG_LED
 		UBaseType_t LEDGetStack_StackWater = 0;
 		TickType_t Cycle_start;																										
 		uint32_t Cycle_ms = 0;
 #endif
 		while(1)
 		{
-#if TASK_DEBUG
+#if DEBUG_LED
 				Cycle_start = xTaskGetTickCount();
 #endif
 				HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
-#if TASK_DEBUG
+#if DEBUG_LED
 		Cycle_ms = (uint32_t)(xTaskGetTickCount() - Cycle_start);
 		LEDGetStack_StackWater = uxTaskGetStackHighWaterMark(NULL);
 		printf("LEDTask剩余栈：%lu字  耗时：%lums\r\n", LEDGetStack_StackWater, (unsigned long)Cycle_ms);
@@ -77,14 +77,14 @@ void LEDTask(void *pvParameters)
 		uint8_t cycle = 0;
 		static TickType_t xLastWakeTime;
 		xLastWakeTime	= xTaskGetTickCount();																				
-#if TASK_DEBUG
+#if DEBUG_SAMPLE
 		UBaseType_t SampleGetStack_StackWater = 0;
 		TickType_t Cycle_start;
 		uint32_t Cycle_ms = 0;
 #endif
 		while(1)
 		{
-#if TASK_DEBUG
+#if DEBUG_SAMPLE
 				Cycle_start = xTaskGetTickCount();
 #endif
 				BQ_GetAll();																														/* 通过结构体传数据给PortectTask */
@@ -100,7 +100,7 @@ void LEDTask(void *pvParameters)
 						g_bms.ready = 1;																	/* 第一轮SampleTask结束 通知PortectTask */
 						cycle = 0;
 				}
-#if TASK_DEBUG
+#if DEBUG_SAMPLE
 		Cycle_ms = (uint32_t)(xTaskGetTickCount() - Cycle_start);
 		SampleGetStack_StackWater = uxTaskGetStackHighWaterMark(NULL);
 		printf("SampleTask剩余栈：%lu字  耗时：%lums\r\n", SampleGetStack_StackWater, (unsigned long)Cycle_ms);
@@ -117,21 +117,21 @@ void PortectTask(void *pvParameters)
 		(void)pvParameters;
 		static TickType_t xLastWakeTime;
 		xLastWakeTime	= xTaskGetTickCount();															
-#if TASK_DEBUG
+#if DEBUG_PROTECT
 		UBaseType_t PortectTask_StackWater = 0;
 		TickType_t Cycle_start;
 		uint32_t Cycle_ms = 0;
 #endif
 			while(1)			
 			{
-#if TASK_DEBUG
+#if DEBUG_PROTECT
 					Cycle_start = xTaskGetTickCount();
 #endif
 					if(g_bms.ready)																	/* 判断第一轮SampleTask是否结束 */
 					{
 						FaultHandling(FaultCheck());									/* 故障检测后传数据给故障处理 */	
 						ClearFaultStatus();														/* 清除硬件保护标志 */
-#if TASK_DEBUG
+#if DEBUG_PROTECT
 						Cycle_ms = (uint32_t)(xTaskGetTickCount() - Cycle_start);
 						PortectTask_StackWater = uxTaskGetStackHighWaterMark(NULL);
 						printf("PortectTask剩余栈：%lu字  耗时：%lums\r\n", PortectTask_StackWater, (unsigned long)Cycle_ms);
@@ -156,14 +156,14 @@ void SOCTask(void *pvParameters)
 		static TickType_t xLastWakeTime;
 		xLastWakeTime	= xTaskGetTickCount();																			/* 记录上一次唤醒的 tick 计数 */
 		uint8_t i = 0;
-#if TASK_DEBUG
+#if DEBUG_SOC
 		UBaseType_t SOCTask_StackWater = 0;
 		TickType_t Cycle_start;																										
 		uint32_t Cycle_ms = 0;
 #endif
 		while(1)
 		{
-#if TASK_DEBUG
+#if DEBUG_SOC
 				Cycle_start = xTaskGetTickCount();
 #endif
 			if(g_bms.ready)																														/* 判断第一轮SampleTask是否结束 */
@@ -176,7 +176,7 @@ void SOCTask(void *pvParameters)
 				}
 				SOC_Est();
 			}
-#if TASK_DEBUG
+#if DEBUG_SOC
 		Cycle_ms = (uint32_t)(xTaskGetTickCount() - Cycle_start);
 		SOCTask_StackWater = uxTaskGetStackHighWaterMark(NULL);
 		printf("SOCTask剩余栈：%lu字  耗时：%lums\r\n", SOCTask_StackWater, (unsigned long)Cycle_ms);
@@ -192,19 +192,19 @@ void BalancingTask(void *pvParameters)
 		(void)pvParameters;
 		static TickType_t xLastWakeTime;
 		xLastWakeTime	= xTaskGetTickCount();																			/* 记录上一次唤醒的 tick 计数 */
-#if TASK_DEBUG
+#if DEBUG_BALANCING
 		UBaseType_t BalancingGetStack_StackWater = 0;
 		TickType_t Cycle_start;																										
 		uint32_t Cycle_ms = 0;
 #endif
 		while(1)
 		{
-#if TASK_DEBUG
+#if DEBUG_BALANCING
 				Cycle_start = xTaskGetTickCount();
 #endif
 		BQ_Balancing();	
 			
-#if TASK_DEBUG
+#if DEBUG_BALANCING
 		Cycle_ms = (uint32_t)(xTaskGetTickCount() - Cycle_start);
 		BalancingGetStack_StackWater = uxTaskGetStackHighWaterMark(NULL);
 		printf("BalancingTask剩余栈：%lu字  耗时：%lums\r\n", BalancingGetStack_StackWater, (unsigned long)Cycle_ms);
@@ -220,18 +220,18 @@ void MonitorTask(void *pvParameters)
 		(void)pvParameters;
 		static TickType_t xLastWakeTime;
 		xLastWakeTime	= xTaskGetTickCount();																			/* 记录上一次唤醒的 tick 计数 */
-#if TASK_DEBUG
+#if DEBUG_MONITOR
 		UBaseType_t MonitorGetStack_StackWater = 0;
 		TickType_t Cycle_start;																										
 		uint32_t Cycle_ms = 0;
 #endif
 			while(1)
 			{
-#if TASK_DEBUG
+#if DEBUG_MONITOR
 				Cycle_start = xTaskGetTickCount();
 #endif
 				Monitor();
-#if TASK_DEBUG
+#if DEBUG_MONITOR
 				Cycle_ms = (uint32_t)(xTaskGetTickCount() - Cycle_start);
 				MonitorGetStack_StackWater = uxTaskGetStackHighWaterMark(NULL);
 				printf("MonitorTask剩余栈：%lu字  耗时：%lums\r\n", MonitorGetStack_StackWater, (unsigned long)Cycle_ms);

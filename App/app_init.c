@@ -8,12 +8,12 @@
 
 
 /*    任务栈大小    */
-#define LED_STACK_SIZE 										128
-#define Sample_STACK_SIZE 								160
-#define Portect_STACK_SIZE 								160
-#define Monitor_STACK_SIZE 								128
-#define Soc_STACK_SIZE 										256
-#define Balancing_STACK_SIZE 							256
+#define LED_STACK_SIZE 										100
+#define Sample_STACK_SIZE 								115
+#define Portect_STACK_SIZE 								100
+#define Monitor_STACK_SIZE 								110
+#define Soc_STACK_SIZE 										110
+#define Balancing_STACK_SIZE 							125
 
 
 /*    任务优先级    */

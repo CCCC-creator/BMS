@@ -11,6 +11,7 @@
 #include "semphr.h"
 #include "app_init.h"
 #include "stdlib.h"
+#include "balancing.h"
 
 
 #define BQ_Address								(0x08<<1)
@@ -114,18 +115,11 @@ void BQ_GetAll(void)
 }
 
 
-/* 控制充放电，均衡开关 */
-void BQ_Control(void)
-{
-		
-		
-}
-
-
 /*--------------------------------------------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------------------------------------------*/
 
 /* BQ休眠模式SHIP。调用后 I2C 失效，唤醒需 PA8 上升沿脉冲 */
+/* 保留，功能未使用 */
 void BQ_SHIP(void)
 {
 		BQ_WriteReg(SYS_CTRL1, BIT_ADC_EN | BIT_TEMP_SEL | BIT_SHUT_B);					/* TEMP_SEL = 1：TS 寄存器读取外部 NTC 热敏电阻 */
@@ -158,6 +152,8 @@ static void BQ_GetCurr(void)
 		uint8_t v[2] = { 0 };
 		int cc = 0;
 		int Curr = 0;
+		if(g_balancing_active)																
+			return;																							/*  如果正在均衡（均衡期间CC值是假值），保持均衡前真实电流， */
 		if(BQ_ReadBlock(CC_HI, v, 2) == HAL_OK)								/*  如果读取失败，直接丢弃，保持上一轮的值 */
 		{	
 			cc = (int16_t)((uint16_t) (v[0] << 8 ) | v[1] );
