@@ -14,7 +14,7 @@ static const uint16_t OCV_SOC_MV[11] = {3000, 3350, 3500, 3600, 3660, 3720, 3800
 
 static uint16_t last_mv;																													/* 锚定变量 */
 static float soc_acc = 0.0f; 																											/* 安时积分法累计的电量变化*/
-
+volatile uint8_t g_socinit_flag = 0;																							/* SOC初始化标志位 */
 
 static bool SOC_OCV(uint16_t min_mv);
 
@@ -31,6 +31,8 @@ void SOC_Est(void)
 		TickType_t now = xTaskGetTickCount();
 		uint32_t dt_ms = (now - last_time);																							/* 一个Tick就是1ms FreeRTOS任务抖动 计算任务循环周期精确时间 */
 		last_time = now;
+		if(abs(g_bms.Cur_ma) > 5000)																										/* 去除假电流 静置的是小于5ma的 例如均衡结束一瞬间的CC值 */
+			return;
 		if(g_balancing_active)																													/* 均衡期间 CC 被污染：不积分、不更新零漂，但继续显示 SOC */
 		{
 			cur_cet = 0.0f;
@@ -107,14 +109,20 @@ void SOC_Est(void)
 void Init_SOC(void)
 {
 		uint16_t min_mv = v_cell_min();
+		static uint8_t Err_flag = 0;
 		if(SOC_OCV(min_mv))
 		{
 			soc_acc = 0.0f;																																	/* OCV得出新的SOC，清零soc_acc重新累加 */
 			printf("OCV锚定SOC：%d.%d%%\r\n", g_bms.socX10 / 10, g_bms.socX10 % 10);	
 			last_mv = min_mv;
+			g_socinit_flag = 1;
+			Err_flag = 0;
 		}
-		else
-			printf("OCV锚定SOC失败，请复位重新启动\r\n");
+		else if(!Err_flag)																																/* 上电读取OCV校准SOC失败，只打印一次 */
+		{
+			printf("OCV锚定SOC失败，等待电压恢复\r\n");
+			Err_flag = 1;
+		}
 }	
 
 
@@ -173,5 +181,5 @@ static bool SOC_OCV(uint16_t min_mv)
 				return true;
 			}
 		}
-		return false;
+		return false;																																	
 }
