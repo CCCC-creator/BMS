@@ -340,7 +340,7 @@
               <MiscControls></MiscControls>
               <Define>USE_HAL_DRIVER,STM32F103xB</Define>
               <Undefine></Undefine>
-              <IncludePath>../Core/Inc;../Drivers/STM32F1xx_HAL_Driver/Inc;../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy;../Drivers/CMSIS/Device/ST/STM32F1xx/Include;../Drivers/CMSIS/Include;../App;../Bsp;../Middleware/FreeRTOS/include;../Middleware/FreeRTOS/portable/RVDS/ARM_CM3</IncludePath>
+              <IncludePath>../Core/Inc;../Drivers/STM32F1xx_HAL_Driver/Inc;../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy;../Drivers/CMSIS/Device/ST/STM32F1xx/Include;../Drivers/CMSIS/Include;../App;../Bsp;../Middleware/FreeRTOS/include;../Middleware/FreeRTOS/portable/RVDS/ARM_CM3;..\Middleware\FreeModbus_Port;..\Middleware\FreeModbus_Core\include;..\Middleware\FreeModbus_Core\rtu</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -1003,6 +1003,11 @@
               <FileType>1</FileType>
               <FilePath>..\App\app_init.c</FilePath>
             </File>
+            <File>
+              <FileName>FreeModbus_app.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\App\FreeModbus_app.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -1087,6 +1092,86 @@
               <FileName>heap_4.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Middleware\FreeRTOS\portable\MemMang\heap_4.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Middlewares/FreeModbus_PORT</GroupName>
+          <Files>
+            <File>
+              <FileName>portevent.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Middleware\FreeModbus_Port\portevent.c</FilePath>
+            </File>
+            <File>
+              <FileName>portserial.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Middleware\FreeModbus_Port\portserial.c</FilePath>
+            </File>
+            <File>
+              <FileName>porttimer.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Middleware\FreeModbus_Port\porttimer.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Middlewares/FreeModbus_CORE</GroupName>
+          <Files>
+            <File>
+              <FileName>mb.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Middleware\FreeModbus_Core\mb.c</FilePath>
+            </File>
+            <File>
+              <FileName>mbcrc.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Middleware\FreeModbus_Core\rtu\mbcrc.c</FilePath>
+            </File>
+            <File>
+              <FileName>mbrtu.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Middleware\FreeModbus_Core\rtu\mbrtu.c</FilePath>
+            </File>
+            <File>
+              <FileName>mbfunccoils.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Middleware\FreeModbus_Core\functions\mbfunccoils.c</FilePath>
+            </File>
+            <File>
+              <FileName>mbfuncdiag.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Middleware\FreeModbus_Core\functions\mbfuncdiag.c</FilePath>
+            </File>
+            <File>
+              <FileName>mbfuncdisc.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Middleware\FreeModbus_Core\functions\mbfuncdisc.c</FilePath>
+            </File>
+            <File>
+              <FileName>mbfuncfile.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Middleware\FreeModbus_Core\functions\mbfuncfile.c</FilePath>
+            </File>
+            <File>
+              <FileName>mbfuncholding.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Middleware\FreeModbus_Core\functions\mbfuncholding.c</FilePath>
+            </File>
+            <File>
+              <FileName>mbfuncinput.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Middleware\FreeModbus_Core\functions\mbfuncinput.c</FilePath>
+            </File>
+            <File>
+              <FileName>mbfuncother.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Middleware\FreeModbus_Core\functions\mbfuncother.c</FilePath>
+            </File>
+            <File>
+              <FileName>mbutils.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Middleware\FreeModbus_Core\functions\mbutils.c</FilePath>
             </File>
           </Files>
         </Group>
