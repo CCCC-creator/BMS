@@ -11,6 +11,7 @@
 #include "i2c.h"
 #include "soc.h"
 #include "balancing.h"
+#include "stdlib.h"
 
 
 volatile SampleDate g_bms;
@@ -149,13 +150,13 @@ void PortectTask(void *pvParameters)
 			}
 }
 
+/* 静置且不均衡时更新SOC */
 /* 估算SOC任务 1000ms*/
 void SOCTask(void *pvParameters)
 {
 		(void)pvParameters;
 		static TickType_t xLastWakeTime;
 		xLastWakeTime	= xTaskGetTickCount();																			/* 记录上一次唤醒的 tick 计数 */
-		uint8_t i = 0;
 #if DEBUG_SOC
 		UBaseType_t SOCTask_StackWater = 0;
 		TickType_t Cycle_start;																										
@@ -166,15 +167,18 @@ void SOCTask(void *pvParameters)
 #if DEBUG_SOC
 				Cycle_start = xTaskGetTickCount();
 #endif
-			if(g_bms.ready)																														/* 判断第一轮SampleTask是否结束 */
+			if(g_bms.ready)																														/* 采集是否完成 */
 			{
-				if(i == 0)																															/* 上电初始化SOC 断电期间电池本来就是静置的，直接OCV锚定一次SOC */
+				if(!g_socinit_flag)																											/* 上电初始化SOC 断电期间电池本来就是静置的，直接OCV锚定一次SOC */
 				{
-					Init_SOC();
 					last_time = xTaskGetTickCount();																			/* 真正开始积分的一刻打点 */
-					i++;
+					if(!g_balancing_active && abs(g_bms.Cur_ma) <= 50)
+					{
+						Init_SOC();
+					}
 				}
-				SOC_Est();
+				else
+					SOC_Est();
 			}
 #if DEBUG_SOC
 		Cycle_ms = (uint32_t)(xTaskGetTickCount() - Cycle_start);
