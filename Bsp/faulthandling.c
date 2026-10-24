@@ -7,25 +7,41 @@
 #include "stdio.h"
 
 
-#define SYS_STAT_UV													(1U << 3)
-#define SYS_STAT_OV													(1U << 2)
+#define SYS_STAT_UV													(1U << 3)      
+#define SYS_STAT_OV													(1U << 2)				/* 硬件过压的位 写一清除 */
 #define SYS_STAT_SCD												(1U << 1)
 #define SYS_STAT_OCD												(1U << 0)
 
+/* 注意：会与故障一起判断该不该开关 */
+volatile uint8_t CHG_enable = 1;																	/* 充电MOS 0：关闭  1：开启 上电默认 1 */
+volatile uint8_t DSG_enable = 1;																	/* 放电MOS 0：关闭  1：开启 上电默认 1 */
 
+static uint8_t sys_stat;
 /* 安全原则自动裁决：只要有一个故障说要关，就关 */
 /* 故障处理 过压 欠压 充电过流 放电过流 短路 过温 低温 */
 void FaultHandling(uint8_t flags)
 {
 	uint8_t state = 0;
-	static uint8_t old_status;
+	uint8_t MOS_now = 0;
+	uint8_t ctrl2 = 0;
 	if((flags & FLAG_OV) == FLAG_OV || (flags & FLAG_COC) == FLAG_COC || (flags & FLAG_SC) == FLAG_SC ||
-		(flags & FLAG_OT) == FLAG_OT || (flags & FLAG_UT) == FLAG_UT)						/* 关闭MOS管 */
+		(flags & FLAG_OT) == FLAG_OT || (flags & FLAG_UT) == FLAG_UT	|| CHG_enable == 0)																			/* 关闭MOS管 */
 		state |= CHG_Bit;
-	if((flags & FLAG_UV) == FLAG_UV || (flags & FLAG_DOC) == FLAG_DOC || (flags & FLAG_SC) == FLAG_SC)
+	if((flags & FLAG_UV) == FLAG_UV || (flags & FLAG_DOC) == FLAG_DOC || (flags & FLAG_SC) == FLAG_SC	|| DSG_enable == 0)		/* 关闭MOS管 */
 		state |= DSG_Bit;	
-																																						/* FH_flag = 0 开启MOS管 */
-		if(state != old_status)
+/* 硬件触发故障关闭mos，进而SYS_CTRL2的CHG DSG也被关闭了，但软件检测是需要时间的，刚好没检测到，就代表没有故障，state也就没有变化了
+实际上因为硬件触发，SYS_CTRL2的CHG DSG也被关闭，软件却不知道，以为没有变化，因为SYS_CTRL2 里对应的位会被芯片清 0，且芯片不会自己置回，
+必须主机重写，即使故障恢复了，也不会恢复MOS，所以要对比是当前的SYS_CTRL2状态才能避免。而且额外解决了I2C写失败，当软件以为写进去了的问题；	*/																																						
+		if(BQ_ReadBlock(SYS_STAT, &sys_stat, 1) != HAL_OK)
+			return;
+		if(BQ_ReadBlock(SYS_CTRL2, &ctrl2, 1) != HAL_OK)
+			return;
+		MOS_now = (~ctrl2) & 0x03;			/* state是置1是关闭，而MOS_now是0为关闭，需要翻转 */
+		if(sys_stat & SYS_STAT_OV)			/* 硬件保护还没解除，就别逆着它开，清除硬件保护标志在void ClearFaultStatus(void)，后面才进行清除 */
+			MOS_now &= ~0x01;
+		if(sys_stat & SYS_STAT_UV || sys_stat & SYS_STAT_SCD || sys_stat & SYS_STAT_OCD)
+			MOS_now &= ~0x02;
+		if(state != MOS_now)
 		{
 			if((state & CHG_Bit) == CHG_Bit)	/* SYS_CTRL2里对应的CHG_Bit置0 关闭充电MOS */
 				ClearBit(SYS_CTRL2, CHG_Bit);
@@ -35,20 +51,18 @@ void FaultHandling(uint8_t flags)
 				ClearBit(SYS_CTRL2, DSG_Bit);
 			else
 				SetBit(SYS_CTRL2, DSG_Bit);				
-			old_status = state;
-			printf("MOS执行：CHG=%d DSG=%d\r\n", !(state & CHG_Bit),  !(state & DSG_Bit));  /* 0 表示关闭  1 表示开启 */
 		}
+		/* 通过modbus rtu通信上位机 */			
+		g_bms.MOS_Status = ctrl2 & 0x03;  /* 为1代表开启对应MOS */
 }
 
 /* 清除硬件保护标志 */
 /* 硬件保护触发时会发生三件事：
 物理 FET 被硬件直接关掉（OV→断 CHG；UV/OCD/SCD→断 DSG）；
 SYS_STAT 里的标志被锁存为 1，不会自己消失；
-SYS_CTRL2 里的 CHG_ON/DSG_ON 位不变  */
+SYS_CTRL2 里对应的位会被芯片清 0，且芯片不会自己置回，必须主机重写  */
 void ClearFaultStatus(void)
 {
-	uint8_t sys_stat;
-	BQ_ReadBlock(SYS_STAT, &sys_stat, 1); 
 	if((g_bms.fault & FLAG_OV) != FLAG_OV && (sys_stat & SYS_STAT_OV) == SYS_STAT_OV)
 		BQ_WriteReg(SYS_STAT, SYS_STAT_OV);
 	if((g_bms.fault & FLAG_UV) != FLAG_UV && (sys_stat & SYS_STAT_UV) == SYS_STAT_UV)
