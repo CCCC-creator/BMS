@@ -25,7 +25,6 @@
 #define CELLBAL2										0x02
 #define CELLBAL3										0x03
 #define SYS_CTRL1										0x04
-#define SYS_CTRL2										0x05
 #define PROTECT1 										0x06
 #define PROTECT2 										0x07
 #define PROTECT3 										0x08

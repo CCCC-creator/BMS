@@ -62,6 +62,7 @@ void BQ_Balancing(void)
 					}
 					for(uint8_t i = 0; i < 15; i++)
 						Balancing[i] = 0;														/* 成功关闭均衡，把当前每节状态清0 */
+					g_bms.bal_mask = mask;
 					last_write_tick = 0;
 					bal_status = 1;																/* 下一轮进下一个模式 */
 					enter_tick = now;															/* 进入刚关均衡的时刻，与下面等待500ms才读电压计算 */
@@ -204,6 +205,7 @@ void BQ_Balancing(void)
 			}
 			for(uint8_t i = 0; i < 15; i++)
 				Balancing[i] = selected[i];																				/* 把这一轮均衡的电池记录给下一次循环任务用 */
+			g_bms.bal_mask = mask;
 			last_write_tick = now;
 			if(mask == 0)
 			{	
@@ -215,6 +217,7 @@ void BQ_Balancing(void)
 				else 
 					g_balancing_active = 0;      																
 			}
+			
 		}	
 		else
 		{

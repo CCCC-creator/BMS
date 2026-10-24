@@ -26,6 +26,8 @@ typedef struct {
 		uint8_t fault;       								/* 当前故障位图（FaultCheck 的返回值） */
 		uint16_t socX10;										/* OCV得出SOC */
 		int16_t Ah_socX10;									/* 安时积分法SOC */
+		uint16_t bal_mask;									/* 均衡位图 */
+		uint8_t MOS_Status;            			/* 当前MOS状态 */
 } SampleDate;
 
 /* 任务心跳 */
@@ -35,6 +37,7 @@ typedef struct {
 		uint32_t hb_protect;
 		uint32_t hb_soc;
 		uint32_t hb_Balancing;
+		uint32_t hb_Modbus;
 } Heartbeat;
 
 extern volatile SampleDate g_bms;
