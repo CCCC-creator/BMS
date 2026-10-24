@@ -53,7 +53,7 @@ void SOC_Est(void)
 		if(g_bms.Ah_socX10 < 0)
 		{
 			g_bms.Ah_socX10 = 0;
-			printf("SOC£º0.0%%\r\n");
+//			printf("SOC£º0.0%%\r\n");
 		}
 		else if(g_bms.Ah_socX10 > 1000)
 		{

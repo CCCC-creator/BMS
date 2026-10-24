@@ -10,15 +10,16 @@
 void Monitor(void)
 {
 		static Heartbeat old;
-		uint32_t d_led, d_smp, d_prt, d_soc, d_Balancing;
+		uint32_t d_led, d_smp, d_prt, d_soc, d_Balancing, d_Modbus;
 
 		d_led = hb.hb_LED     - old.hb_LED;					
 		d_smp = hb.hb_sample  - old.hb_sample;
 		d_prt = hb.hb_protect - old.hb_protect;
 		d_soc = hb.hb_soc - old.hb_soc;
 		d_Balancing = hb.hb_Balancing - old.hb_Balancing;
+		d_Modbus = hb.hb_Modbus - old.hb_Modbus; 
 	
-		if(d_led != 0 && d_smp != 0 && d_prt != 0 && d_soc != 0 && d_Balancing != 0)	/* 根据任务周期决定喂狗时间差 */
+		if(d_led != 0 && d_smp != 0 && d_prt != 0 && d_soc != 0 && d_Balancing != 0 && d_Modbus != 0)	/* 根据任务周期决定喂狗时间差 */
 		{
 				HAL_IWDG_Refresh(&hiwdg);						
 		}

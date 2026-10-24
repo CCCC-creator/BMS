@@ -151,7 +151,7 @@ eMBErrorCode
 eMBRTUReceive( UCHAR * pucRcvAddress, UCHAR ** pucFrame, USHORT * pusLength )
 {
     eMBErrorCode    eStatus = MB_ENOERR;
-    USHORT          usCRC16Result = 0;
+
 
     ENTER_CRITICAL_SECTION(  );
     assert( usRcvBufferPos <= MB_SER_PDU_SIZE_MAX );
@@ -159,6 +159,7 @@ eMBRTUReceive( UCHAR * pucRcvAddress, UCHAR ** pucFrame, USHORT * pusLength )
     /* Length and CRC check */
 #ifdef STM32_CMAKE // work around nasty gcc compiler bug
     {
+		    USHORT          usCRC16Result = 0;           /* 未用到，本地修改 */		
         volatile UCHAR* srcPtr;
         
         // Get the correct address of ucRTUBuf

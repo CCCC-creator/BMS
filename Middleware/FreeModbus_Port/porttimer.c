@@ -8,20 +8,21 @@
 static void prvvTIMERExpiredISR( void );
 
 /* ----------------------- 全局变量：软件计数 -----------------------*/
-static uint16_t timerCnt = 0;
-static uint16_t timerTarget = 0;
+static uint16_t timerCnt = 0;														/* 当前计数值，硬件每 50us 进一次中断 */
+static uint16_t timerTarget = 0;												/* 目标阈值，FreeModbus 算好的：需要多少个 50us 才等于 3.5 字符空闲时间 */
 
 /* ----------------------- 定时器初始化函数，协议栈调用 -----------------------*/
 BOOL
 xMBPortTimersInit( USHORT usTim1Timerout50us )
 {
-    // FreeModbus传入：需要多少个50us，作为3.5字符空闲时间
+    /* FreeModbus传入：需要多少个50us，作为3.5字符空闲时间，这个与下面的回调函数配合 */
+		/* 硬件定时器必须50us溢出一次 */
     timerTarget = usTim1Timerout50us;
     timerCnt = 0;
     return TRUE;
 }
 
-/* ----------------------- 定时器使能：协议栈收到字节时打开定时器，重置计数器 -----------------------*/
+/* ----------------------- 定时器使能：协议栈收到字节时中断打开定时器，重置计数器 -----------------------*/
 inline void
 vMBPortTimersEnable(  )
 {
@@ -49,7 +50,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     if(htim->Instance == TIM4)
     {
         timerCnt++;
-        // 累计时间达到3.5字符空闲时间
+        /* 累计时间达到3.5字符空闲时间 */
         if(timerCnt >= timerTarget)
         {
             prvvTIMERExpiredISR();

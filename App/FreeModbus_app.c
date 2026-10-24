@@ -23,22 +23,44 @@
 #include "mbport.h"
 #include "mbutils.h"    // xMBUtilGetBits/xMBUtilSetBits 线圈位打包工具
 #include "stm32f1xx_hal.h"
+#include "FreeModbus_app.h"
+#include "app_task.h"
+#include "bq76940.h"
+#include "soc.h"
+#include "faulthandling.h"
 
 /* ----------------------- Defines ------------------------------------------*/
 /* 地址基准：协议栈调用回调前已把报文地址+1，所以START填"报文地址+1"。
    即报文(0-based)地址X对应 buf[X-(START-1)]，报文0始终对应buf[0] */
+/* Modbus 报文里，主机发的地址有两种理解方式：
+1. 有些 Modbus 工具 / 文档写「偏移地址 0000」（0 基，是报文 PDU 里面的原始偏移）
+2. 寄存器编号 = 偏移 +1（1 基，用户在 ModbusPoll 界面填的）
+FreeModbus 传给回调的 `usAddress` 是寄存器编号（1 基），不是 PDU 里的 0 基偏移！*/
 // 输入寄存器（功能码04，只读），报文地址1000~1003
-#define REG_INPUT_START 1001
-#define REG_INPUT_NREGS 4
+#define REG_INPUT_START 						1001
+#define REG_INPUT_NREGS 						1
 
-// 保持寄存器（功能码03/06/16，可读可写，调试推荐使用），报文地址0~9
-#define REG_HOLD_START  1
-#define REG_HOLD_NREGS  10
+// 保持寄存器（功能码03/06/16），报文地址0~9
+#define REG_HOLD_START  						1									/* 工程中大部分上位机和 PLC 只实现 03/06，主流 BMS 的寄存器表也是把测量值放在保持寄存器里 */
+#define REG_HOLD_NREGS  						24
+
+#define R_CELL_NCT									0									/* 有效电芯数量 */
+#define R_CELL_MAP  								1									/* Cell1..Cell15 占 1~15 */
+#define R_CELL1   									2									/* 总压 mV */
+#define R_TOTAL											17								/* 电流 mA，int16，放电为正 */
+#define R_CURRENT										18								/* 电流 mA，int16，放电为正 */
+#define R_SOC												19								/* SOC x10，0~1000 */
+#define R_TEMP											20								/* 温度 x10，int16 */
+#define R_FAULT											21								/* 故障位图，和 g_bms.fault 同位 */
+#define R_BAL_MASK  								22								/* bit0=ready  bit1=均衡中 */
+#define R_MOS												23								/* 存放MOS状态 */
 
 // 线圈（功能码01/05/15），报文地址0~7
-#define REG_COIL_START  1
-#define REG_COIL_NCOILS 8
+#define REG_COIL_START  						1
+#define REG_COIL_NCOILS 						2									/* 用2个位 */
 
+#define BIT_CHG  										1U << 0									/* 充电 */
+#define BIT_DSG  										1U << 1									/* 放电 */
 /* ----------------------- Static variables ---------------------------------*/
 static USHORT   usRegInputBuf[REG_INPUT_NREGS];    // 输入寄存器数组
 static USHORT   usRegHoldingBuf[REG_HOLD_NREGS];   // 保持寄存器数组
@@ -159,7 +181,9 @@ eMBRegCoilsCB( UCHAR * pucRegBuffer, USHORT usAddress, USHORT usNCoils,
                                 ( UCHAR )( *pucRegBuffer++ & ( ( 1 << ucBitNum ) - 1 ) ) );
                 iRegIndex += ucBitNum;
                 usNCoils -= ucBitNum;
-            }
+            }									
+						CHG_enable = xMBUtilGetBits(ucCoilBuf, 0, 1);				/* 从 bit0 开始取 1 位 */
+						DSG_enable = xMBUtilGetBits(ucCoilBuf, 1, 1);				/* 从 bit1 开始取 1 位 */
         }
     }
     else
@@ -180,6 +204,7 @@ eMBRegDiscreteCB( UCHAR * pucRegBuffer, USHORT usAddress, USHORT usNDiscrete )
 }
 
 /* ----------------------- Modbus任务入口函数（FreeRTOS任务，xTaskCreate调用） -----------------------------*/
+/* 不能充电时上电，只能上电后充电，否则不显示SOC */
 void FreeModbus_RTU_Task( void *pvParameters )
 {
     eMBErrorCode    eStatus;
@@ -197,20 +222,47 @@ void FreeModbus_RTU_Task( void *pvParameters )
     eStatus = eMBInit( MB_RTU, 0x01, 0, 9600, MB_PAR_NONE, 1 );
     if(eStatus != MB_ENOERR)
     {
-        // Modbus初始化失败，可以加LED报错提示
+        /* Modbus初始化失败 删除任务 */
         vTaskDelete( NULL );
     }
-    /* Enable the Modbus Protocol Stack. */
+		
+		xMBUtilSetBits(ucCoilBuf, 0, 2, 0x03);					/* 两个全局变量默认是 1（允许） */
+    /* 启动 Modbus 协议栈 */
     eStatus = eMBEnable(  );
     if(eStatus != MB_ENOERR)
     {
-        vTaskDelete( NULL );
+        vTaskDelete( NULL );        /* 启动 Modbus 协议栈失败 删除任务 */
     }
 
     while(1)
     {
+				SampleDate data = g_bms;
+				uint8_t n = 0;										/* 记录使用了的电池总数 */
+				USHORT map = 0;
+				for(uint8_t i = 0; i < 15; i++)
+				{
+					if(cell_used[i] == 1)
+					{
+						map |= (1U << i);
+						usRegHoldingBuf[R_CELL1 + i] = data.Cell_mv[i];
+						n++;
+					}
+					else
+					{
+						usRegHoldingBuf[R_CELL1 + i] = 0;
+					}
+				}
+				usRegHoldingBuf[R_CELL_MAP] = map;
+				usRegHoldingBuf[R_CELL_NCT] = (USHORT)n;
+				usRegHoldingBuf[R_TOTAL] = (USHORT)data.Total_mv;
+				usRegHoldingBuf[R_CURRENT] = (USHORT)(int16_t)data.Cur_ma;
+				usRegHoldingBuf[R_SOC] = g_socinit_flag ? (USHORT)data.Ah_socX10 : 0xFFFF;		/* 没有校准成功就显示0xFFFF */
+				usRegHoldingBuf[R_TEMP] = (USHORT)(int16_t)data.TemX10;
+				usRegHoldingBuf[R_FAULT] = (USHORT)data.fault;
+				usRegHoldingBuf[R_BAL_MASK] = (USHORT)data.bal_mask;
+				usRegHoldingBuf[R_MOS] = g_bms.MOS_Status;
+				
         ( void )eMBPoll(  );   // Modbus事件轮询；xMBPortEventGet最多阻塞10ms，此处无需额外延时
-        /* 测试：输入寄存器第0个持续自增，Modbus Poll可以观察变化 */
-        usRegInputBuf[0]++;
+				hb.hb_Modbus++;
     }
 }

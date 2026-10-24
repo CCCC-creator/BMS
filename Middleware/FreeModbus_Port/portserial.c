@@ -14,7 +14,7 @@ void vMBPortSerialEnable( BOOL xRxEnable, BOOL xTxEnable )
     // 接收中断 RXNE：收到字节触发
     if(xRxEnable)
     {
-        __HAL_UART_ENABLE_IT(&huart1, UART_IT_RXNE);
+        __HAL_UART_ENABLE_IT(&huart1, UART_IT_RXNE);    /* RXNE：Receive Not Empty，收到 1 字节，数据寄存器不为空 */
     }
     else
     {
@@ -24,7 +24,7 @@ void vMBPortSerialEnable( BOOL xRxEnable, BOOL xTxEnable )
     // 发送空中断 TXE：发送寄存器为空，可以继续发下一字节
     if(xTxEnable)
     {
-        __HAL_UART_ENABLE_IT(&huart1, UART_IT_TXE);
+        __HAL_UART_ENABLE_IT(&huart1, UART_IT_TXE);			/* TXE：Transmit Empty，发送寄存器空，可以填下一个字节 */
     }
     else
     {
@@ -46,7 +46,7 @@ xMBPortSerialInit( UCHAR ucPORT, ULONG ulBaudRate, UCHAR ucDataBits, eMBParity e
 BOOL
 xMBPortSerialPutByte( CHAR ucByte )
 {
-    huart1.Instance->DR = ucByte;
+    huart1.Instance->DR = ucByte;									/* 协议栈要发一个字节的时候调用，直接往 USART 的数据寄存器 DR 写入字节 */
     return TRUE;
 }
 
@@ -54,7 +54,7 @@ xMBPortSerialPutByte( CHAR ucByte )
 BOOL
 xMBPortSerialGetByte( CHAR * pucByte )
 {
-    *pucByte = (huart1.Instance->DR) & 0xFF;
+    *pucByte = (huart1.Instance->DR) & 0xFF;     /* RX中断触发后，协议栈回调里面会调用这个函数，从 DR 寄存器读出收到的 1 字节 */
     return TRUE;
 }
 
