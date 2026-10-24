@@ -28,6 +28,8 @@
 #include "bq76940.h"
 #include "soc.h"
 #include "faulthandling.h"
+#include "balancing.h"
+
 
 /* ----------------------- Defines ------------------------------------------*/
 /* 地址基准：协议栈调用回调前已把报文地址+1，所以START填"报文地址+1"。
@@ -59,8 +61,7 @@ FreeModbus 传给回调的 `usAddress` 是寄存器编号（1 基），不是 PDU 里的 0 基偏移！
 #define REG_COIL_START  						1
 #define REG_COIL_NCOILS 						2									/* 用2个位 */
 
-#define BIT_CHG  										1U << 0									/* 充电 */
-#define BIT_DSG  										1U << 1									/* 放电 */
+
 /* ----------------------- Static variables ---------------------------------*/
 static USHORT   usRegInputBuf[REG_INPUT_NREGS];    // 输入寄存器数组
 static USHORT   usRegHoldingBuf[REG_HOLD_NREGS];   // 保持寄存器数组
@@ -184,6 +185,7 @@ eMBRegCoilsCB( UCHAR * pucRegBuffer, USHORT usAddress, USHORT usNCoils,
             }									
 						CHG_enable = xMBUtilGetBits(ucCoilBuf, 0, 1);				/* 从 bit0 开始取 1 位 */
 						DSG_enable = xMBUtilGetBits(ucCoilBuf, 1, 1);				/* 从 bit1 开始取 1 位 */
+						BAL_enable = xMBUtilGetBits(ucCoilBuf, 2, 1);				
         }
     }
     else
@@ -226,7 +228,7 @@ void FreeModbus_RTU_Task( void *pvParameters )
         vTaskDelete( NULL );
     }
 		
-		xMBUtilSetBits(ucCoilBuf, 0, 2, 0x03);					/* 两个全局变量默认是 1（允许） */
+		xMBUtilSetBits(ucCoilBuf, 0, 3, 0x07);					/* 三个全局变量默认是 1（允许） */
     /* 启动 Modbus 协议栈 */
     eStatus = eMBEnable(  );
     if(eStatus != MB_ENOERR)

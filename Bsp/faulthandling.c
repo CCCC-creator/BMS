@@ -13,8 +13,8 @@
 #define SYS_STAT_OCD												(1U << 0)
 
 /* 注意：会与故障一起判断该不该开关 */
-volatile uint8_t CHG_enable = 1;																	/* 充电MOS 0：关闭  1：开启 上电默认 1 */
-volatile uint8_t DSG_enable = 1;																	/* 放电MOS 0：关闭  1：开启 上电默认 1 */
+volatile uint8_t CHG_enable = 1;																	/* 上位机管理充电MOS 0：关闭  1：开启 上电默认 1 */
+volatile uint8_t DSG_enable = 1;																	/* 上位机管理放电MOS 0：关闭  1：开启 上电默认 1 */
 
 static uint8_t sys_stat;
 /* 安全原则自动裁决：只要有一个故障说要关，就关 */
