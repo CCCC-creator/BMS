@@ -24,3 +24,10 @@ Release/
 # 系统文件
 .DS_Store
 Thumbs.db
+
+# debug logs
+MDK-ARM/JLinkLog.txt
+MDK-ARM/build_log.txt
+# nested worktrees
+/BMS-FreeRTOS-modbus/
+/BMS-FreeRTOS-canopen/
