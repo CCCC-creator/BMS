@@ -21,11 +21,11 @@ extern uint32_t SystemCoreClock;
 #define configUSE_TASK_NOTIFICATIONS                    1                       /* 1: 使能任务间直接的消息传递,包括信号量、事件标志组和消息邮箱, 默认: 1 */
 #define configTASK_NOTIFICATION_ARRAY_ENTRIES           1                       /* 定义任务通知数组的大小, 默认: 1 */
 #define configUSE_MUTEXES                               1                       /* 1: 使能互斥信号量, 默认: 0 */
-#define configUSE_RECURSIVE_MUTEXES                     1                       /* 1: 使能递归互斥信号量, 默认: 0 */
-#define configUSE_COUNTING_SEMAPHORES                   1                       /* 1: 使能计数信号量, 默认: 0 */
+#define configUSE_RECURSIVE_MUTEXES                     0                       /* 1: 使能递归互斥信号量, 默认: 0 */
+#define configUSE_COUNTING_SEMAPHORES                   0                       /* 1: 使能计数信号量, 默认: 0 */
 #define configUSE_ALTERNATIVE_API                       0                       /* 已弃用!!! */
 #define configQUEUE_REGISTRY_SIZE                       8                       /* 定义可以注册的信号量和消息队列的个数, 默认: 0 */
-#define configUSE_QUEUE_SETS                            1                       /* 1: 使能队列集, 默认: 0 */
+#define configUSE_QUEUE_SETS                            0                       /* 1: 使能队列集, 默认: 0 */
 #define configUSE_TIME_SLICING                          1                       /* 1: 使能时间片调度, 默认: 1 */
 #define configUSE_NEWLIB_REENTRANT                      0                       /* 1: 任务创建时分配Newlib的重入结构体, 默认: 0 */
 #define configENABLE_BACKWARD_COMPATIBILITY             0                       /* 1: 使能兼容老版本, 默认: 1 */
@@ -36,7 +36,7 @@ extern uint32_t SystemCoreClock;
 /* 内存分配相关定义 */
 #define configSUPPORT_STATIC_ALLOCATION                 1                       /* 1: 支持静态申请内存, 默认: 0 */
 #define configSUPPORT_DYNAMIC_ALLOCATION                1                       /* 1: 支持动态申请内存, 默认: 1 */
-#define configTOTAL_HEAP_SIZE                           ((size_t)(10 * 1024))   /* FreeRTOS堆中可用的RAM总量, 单位: Byte, 无默认需定义 */
+#define configTOTAL_HEAP_SIZE                           ((size_t)(1 * 1024))   /* FreeRTOS堆中可用的RAM总量, 单位: Byte, 无默认需定义 */
 #define configAPPLICATION_ALLOCATED_HEAP                0                       /* 1: 用户手动分配FreeRTOS内存堆(ucHeap), 默认: 0 */
 #define configSTACK_ALLOCATION_FROM_SEPARATE_HEAP       0                       /* 1: 用户自行实现任务创建时使用的内存申请与释放函数, 默认: 0 */
 
@@ -51,15 +51,15 @@ extern uint32_t SystemCoreClock;
 #define configGENERATE_RUN_TIME_STATS                   0                       /* 1: 使能任务运行时间统计功能, 默认: 0 */
 /* 注：若要打开 configGENERATE_RUN_TIME_STATS，需要先提供一个计时源，
  * 并实现下面两个宏（原教程引用的 ./BSP/TIMER/btim.h 不存在，已删除） */
-#define configUSE_TRACE_FACILITY                        1                       /* 1: 使能可视化跟踪调试, 默认: 0 */
-#define configUSE_STATS_FORMATTING_FUNCTIONS            1                       /* 1: configUSE_TRACE_FACILITY为1时，会编译vTaskList()和vTaskGetRunTimeStats()函数, 默认: 0 */
+#define configUSE_TRACE_FACILITY                        0                       /* 1: 使能可视化跟踪调试, 默认: 0 */
+#define configUSE_STATS_FORMATTING_FUNCTIONS            0                       /* 1: configUSE_TRACE_FACILITY为1时，会编译vTaskList()和vTaskGetRunTimeStats()函数, 默认: 0 */
 
 /* 协程相关定义 */
 #define configUSE_CO_ROUTINES                           0                       /* 1: 启用协程, 默认: 0 */
 #define configMAX_CO_ROUTINE_PRIORITIES                 2                       /* 定义协程的最大优先级, 最大优先级=configMAX_CO_ROUTINE_PRIORITIES-1, 无默认configUSE_CO_ROUTINES为1时需定义 */
 
 /* 软件定时器相关定义 */
-#define configUSE_TIMERS                                1                               /* 1: 使能软件定时器, 默认: 0 */
+#define configUSE_TIMERS                                0                               /* 1: 使能软件定时器, 默认: 0 */
 #define configTIMER_TASK_PRIORITY                       ( configMAX_PRIORITIES - 1 )    /* 定义软件定时器任务的优先级, 无默认configUSE_TIMERS为1时需定义 */
 #define configTIMER_QUEUE_LENGTH                        5                               /* 定义软件定时器命令队列的长度, 无默认configUSE_TIMERS为1时需定义 */
 #define configTIMER_TASK_STACK_DEPTH                    ( configMINIMAL_STACK_SIZE * 2) /* 定义软件定时器任务的栈空间大小, 无默认configUSE_TIMERS为1时需定义 */
@@ -78,7 +78,7 @@ extern uint32_t SystemCoreClock;
 #define INCLUDE_xTaskGetIdleTaskHandle                  1                       /* 获取空闲任务的任务句柄 */
 #define INCLUDE_eTaskGetState                           1                       /* 获取任务状态 */
 #define INCLUDE_xEventGroupSetBitFromISR                1                       /* 在中断中设置事件标志位 */
-#define INCLUDE_xTimerPendFunctionCall                  1                       /* 将函数的执行挂到定时器服务任务 */
+#define INCLUDE_xTimerPendFunctionCall                  0                       /* 将函数的执行挂到定时器服务任务 */
 #define INCLUDE_xTaskAbortDelay                         1                       /* 中断任务延时 */
 #define INCLUDE_xTaskGetHandle                          1                       /* 通过任务名获取任务句柄 */
 #define INCLUDE_xTaskResumeFromISR                      1                       /* 恢复在中断中挂起的任务 */
