@@ -5,6 +5,7 @@
 
 /* 1=当前有均衡在跑（供 FaultCheck 跳过不可信的软件 SC） */
 extern volatile uint8_t g_balancing_active;
+extern volatile uint8_t BAL_enable;
 
 void BQ_Balancing(void);
 
