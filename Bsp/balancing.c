@@ -19,6 +19,8 @@
 /* 1=当前有均衡在跑（供 FaultCheck 跳过不可信的软件 SC） */
 volatile uint8_t g_balancing_active = 0 ;
 
+volatile uint8_t BAL_enable = 1 ;   /* 上位机开关均衡 */
+
 static bool find_min_max(int* min_mv, int* max_mv);
 
 /* 找到最高最低  看是否需要均衡  将后选均衡电池给分  把最高分的先挑选均衡
@@ -41,7 +43,7 @@ void BQ_Balancing(void)
 		uint8_t candidate[15] = { 0 };																			/* 本次需要均衡的候选电池 */
 		uint8_t selected[15] = { 0 };																				/* 本次选中要启动均衡的电池 */
 		static TickType_t last_write_tick = 0;															/* 上一次成功把均衡掩码写进芯片的时刻 */
-;
+
 /*--------------------------------------------------------------------------------------------------------------*/		
 /* 由于硬件缺陷，不能均衡与读电流同时进行，所以均衡10s停1s读取电压，期间可以正常检测电流类故障 */	
 		static uint8_t bal_status = 0;										/* 状态 0：正常 1：刚关均衡，不读CC 2：读CC */
@@ -94,8 +96,8 @@ void BQ_Balancing(void)
 		/* 均衡期间 CC 会被均衡电流污染，读数可能是几十安培的假值。
 		   一旦均衡已经在跑，就不能再用这个电流去停均衡：
 		   否则会自己把自己关掉，然后假电流继续触发 SC/DOC/COC。 */
-		if(g_bms.ready != 1 || g_bms.fault != 0x00 || !g_socinit_flag ||				/* 采集完成，没有故障，SOC初始完成 */
-		   (g_balancing_active == 0 && abs(g_bms.Cur_ma) > 50))									/* 不在均衡，但不处于静置状态 */
+		if(g_bms.ready != 1 || g_bms.fault != 0x00 || !g_socinit_flag ||					/* 采集完成，没有故障，SOC初始完成 */
+			BAL_enable == 0 ||(g_balancing_active == 0 && abs(g_bms.Cur_ma) > 50))	/* 上位机命令，不在均衡，但不处于静置状态 */
 		{
 			ok = false;
 		}
