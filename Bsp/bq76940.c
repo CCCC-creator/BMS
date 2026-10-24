@@ -269,7 +269,6 @@ static void BQ_Getoffset(void)
 		BQ_ReadBlock(ADCGAIN1, &Gain[0], 1);
 	  BQ_ReadBlock(ADCGAIN2, &Gain[1], 1);
 		GAIN14 = 365 + ((Gain[0] & 0x0C) << 1 | (Gain[1] & 0xE0) >> 5);
-		printf("Offset=%02d£¬ GAIN=%02d\r\n", Offset, GAIN14);
 }
 
 /* Ð´¼Ä´æÆ÷ */

@@ -66,7 +66,6 @@ void BQ_Balancing(void)
 					last_write_tick = 0;
 					bal_status = 1;																/* 下一轮进下一个模式 */
 					enter_tick = now;															/* 进入刚关均衡的时刻，与下面等待500ms才读电压计算 */
-					printf("均衡暂停，读电流值\r\n");
 					return;																				/* 每一段自己管自己，干完就明确退出，不往下执行均衡任务 */
 				}
 				break;																					/* 都不成立，跳出switch，执行下面的均衡任务 */
@@ -190,19 +189,6 @@ void BQ_Balancing(void)
 
 		if(BQ_SetBalanceMask(mask))
 		{
-			if(changed)
-			{
-				if(mask == 0)
-					printf("全部均衡关闭\r\n");
-				else
-				{
-					for(uint8_t i = 0; i < 15; i++)
-					{
-						if(selected[i] == 1)
-							printf("Cell%d正在均衡\r\n", i + 1);
-					}
-				}
-			}
 			for(uint8_t i = 0; i < 15; i++)
 				Balancing[i] = selected[i];																				/* 把这一轮均衡的电池记录给下一次循环任务用 */
 			g_bms.bal_mask = mask;

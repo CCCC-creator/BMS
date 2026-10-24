@@ -53,16 +53,13 @@ void SOC_Est(void)
 		if(g_bms.Ah_socX10 < 0)
 		{
 			g_bms.Ah_socX10 = 0;
-//			printf("SOC：0.0%%\r\n");
 		}
 		else if(g_bms.Ah_socX10 > 1000)
 		{
 			g_bms.Ah_socX10 = 1000;
-			printf("SOC：100.0%%\r\n");
 		}
 		else
 		{
-			printf("SOC：%d.%d%%\r\n", g_bms.Ah_socX10 / 10, g_bms.Ah_socX10 % 10);
 		}
 		
 /* OCV开路法 */	
@@ -83,7 +80,6 @@ void SOC_Est(void)
 								soc_acc = 0.0f;																																/* OCV得出新的SOC，清零soc_acc重新累加 */
 								last_mv = min_mv;																															/* 锚点：把当前这个跳变很大的电压存起来，作为下一轮的对比基准，持续观察这个新电压能不能稳住，判断是不是真的是干扰 */
 								cnt = 0;
-								printf("OCV测得SOC：%d (Vmin=%dmV)\r\n", g_bms.socX10 / 10, min_mv);
 							}
 						}
 				}
@@ -94,7 +90,6 @@ void SOC_Est(void)
 						soc_acc = 0.0f;																																/* OCV得出新的SOC，清零soc_acc重新累加 */
 						last_mv = min_mv;
 						cnt = 0;
-						printf("初始化SOC：%d.%d\r\n", g_bms.socX10 / 10, g_bms.socX10 % 10);
 					}
 				}
 				tick_start = xTaskGetTickCount();																							/* 开启新一轮OCV */	
@@ -113,14 +108,12 @@ void Init_SOC(void)
 		if(SOC_OCV(min_mv))
 		{
 			soc_acc = 0.0f;																																	/* OCV得出新的SOC，清零soc_acc重新累加 */
-			printf("OCV锚定SOC：%d.%d%%\r\n", g_bms.socX10 / 10, g_bms.socX10 % 10);	
 			last_mv = min_mv;
 			g_socinit_flag = 1;
 			Err_flag = 0;
 		}
 		else if(!Err_flag)																																/* 上电读取OCV校准SOC失败，只打印一次 */
 		{
-			printf("OCV锚定SOC失败，等待电压恢复\r\n");
 			Err_flag = 1;
 		}
 }	

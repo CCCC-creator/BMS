@@ -47,7 +47,6 @@ uint8_t FaultCheck(void)
 		static uint8_t cnt_SC2 = 0;
 		static uint8_t cnt_OT = 0;
 		static uint8_t cnt_UT = 0;
-		uint8_t edges = 0;															
 		
 /*--------------------------------------------------------------------------------------------------------------*/
 /* 滞回 防止数值在阈值附近来回抖动，造成频繁误触发、反复跳故障 */		
@@ -256,21 +255,6 @@ uint8_t FaultCheck(void)
 		
 /*--------------------------------------------------------------------------------------------------------------*/
 
-		edges = out ^ prev; 																		/*这轮的状态和上一轮的状态变化的位 = 1 */		
-		if(edges & FLAG_OV)																			/* 判断变化的位是不是FLAG_OV的位 */
-			printf((out & FLAG_OV) ? "过压故障\r\n" : "过压已解除\r\n");
-		if(edges & FLAG_UV)																			
-			printf((out & FLAG_UV) ? "欠压故障\r\n" : "欠压已解除\r\n");
-		if(edges & FLAG_DOC)																			
-			printf((out & FLAG_DOC) ? "放电过流故障\r\n" : "放电过流已解除\r\n");
-		if(edges & FLAG_COC)																			
-			printf((out & FLAG_COC) ? "充电过流故障\r\n" : "充电过流已解除\r\n");
-		if(edges & FLAG_SC)																			
-			printf((out & FLAG_SC) ? "短路故障\r\n" : "短路已解除\r\n");
-		if(edges & FLAG_OT)																			
-			printf((out & FLAG_OT) ? "过温故障\r\n" : "过温已解除\r\n");	
-		if(edges & FLAG_UT)																			
-			printf((out & FLAG_UT) ? "低温故障\r\n" : "低温已解除\r\n");
 		
 		g_bms.fault = out;
 		prev = out;
