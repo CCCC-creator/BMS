@@ -31,3 +31,4 @@ MDK-ARM/build_log.txt
 # nested worktrees
 /BMS-FreeRTOS-modbus/
 /BMS-FreeRTOS-canopen/
+MDK-ARM/tem.uvoptx
