@@ -47,19 +47,19 @@ FreeModbus 传给回调的 `usAddress` 是寄存器编号（1 基），不是 PDU 里的 0 基偏移！
 #define REG_HOLD_NREGS  						24
 
 #define R_CELL_NCT									0									/* 有效电芯数量 */
-#define R_CELL_MAP  								1									/* Cell1..Cell15 占 1~15 */
-#define R_CELL1   									2									/* 总压 mV */
-#define R_TOTAL											17								/* 电流 mA，int16，放电为正 */
+#define R_CELL_MAP  								1									/* 使用了的电芯位图 */
+#define R_CELL1   									2									/* Cell1..Cell15 占 1~15 */
+#define R_TOTAL											17								/* 总压 mV */
 #define R_CURRENT										18								/* 电流 mA，int16，放电为正 */
 #define R_SOC												19								/* SOC x10，0~1000 */
 #define R_TEMP											20								/* 温度 x10，int16 */
 #define R_FAULT											21								/* 故障位图，和 g_bms.fault 同位 */
-#define R_BAL_MASK  								22								/* bit0=ready  bit1=均衡中 */
+#define R_BAL_MASK  								22								/* 1=均衡中 */
 #define R_MOS												23								/* 存放MOS状态 */
 
 // 线圈（功能码01/05/15），报文地址0~7
 #define REG_COIL_START  						1
-#define REG_COIL_NCOILS 						2									/* 用2个位 */
+#define REG_COIL_NCOILS 						3									/* 用3个位 */
 
 
 /* ----------------------- Static variables ---------------------------------*/
