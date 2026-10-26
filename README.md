@@ -9,6 +9,44 @@
 
 ![上位机](docs/host_gui.png)
 
+## 系统框图
+
+硬件与数据流：
+
+```mermaid
+flowchart LR
+    subgraph PACK["9 串电池包（约 33V / 1200mAh）"]
+        CELLS["Cell1 ~ Cell9"]
+    end
+
+    AFE["bq76940<br/>15 节电压监测 · 库仑计 CC<br/>硬件保护 OV/UV/OCD/SCD"]
+    MCU["STM32F103C8T6 · FreeRTOS<br/>采样 / 保护 / SOC / 均衡 / 看门狗 / Modbus"]
+    MOS["充放电 MOS"]
+    USB["USB-TTL"]
+    PC["Python 上位机<br/>实时监控 + 远程控制"]
+
+    CELLS -- "采样线（每节 2 根）" --> AFE
+    AFE -- "I2C1 100kHz：电压 / CC / TS" --> MCU
+    MCU -- "SYS_CTRL2 开关管 · CELLBAL 均衡 · 保护阈值" --> AFE
+    AFE -- "CHG / DSG 栅极驱动" --> MOS
+    MOS -- "主电流回路" --> CELLS
+    MCU <-. "USART1 · 9600 8N1 · Modbus RTU 从站 1" .-> USB
+    USB <-->|"FC03 / FC06 / FC01 / FC05"| PC
+    IWDG["IWDG 独立看门狗"] --- MCU
+```
+
+保护与远程控制的决策链（线圈只是"请求"，保护永远优先）：
+
+```mermaid
+flowchart LR
+    REQ["线圈请求<br/>充电 / 放电 / 均衡使能"] --> GATE{"请求 AND 无故障"}
+    SW["软件故障位图<br/>OV / UV / COC / DOC / SC / OT / UT"] --> GATE
+    HW["芯片 SYS_STAT<br/>硬件保护锁存位"] --> GATE
+    GATE --> OUT["写入 SYS_CTRL2 / CELLBAL"]
+    OUT --> FB["回读校验<br/>不一致则补写"]
+    FB --> MOSP["实际 MOS / 均衡状态<br/>（Modbus 寄存器 22/23）"]
+```
+
 ## 它能做什么
 
 每 250ms 采一轮 9 节电压、电流（bq76940 的库仑计）、温度，然后：
@@ -65,4 +103,3 @@
 - `debug`：开发版，带全套诊断打印
 - `canopen`：CANopen 移植中
 
-（系统框图以后补。）
