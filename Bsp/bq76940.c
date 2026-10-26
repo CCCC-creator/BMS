@@ -193,13 +193,43 @@ static void BQ_GetAllCellV(void)
 		int V_total = 0;
 		uint8_t VC_HI = VC1_HI;
 		uint8_t VC_LO = VC1_LO;
+		static uint16_t last_v[15] = { 0 };
+		static uint16_t cand[15] = { 0 };
+		static uint16_t cnt[15] = { 0 };
 		for(int i = 0; i<15; i++)
 		{
 			v[0] = v[1] = 0;																			/*  防止读失败把上一节的读到的电池电压值用 */
 			if(BQ_ReadBlock(VC_HI, v, 2) == HAL_OK)								/*  如果读取失败，直接丢弃，保持上一轮的电压值 */
 			{
 				adc14 = ((uint16_t) (v[0] & 0x3F) << 8 ) | v[1];
-				g_bms.Cell_mv[i] = (GAIN14 * adc14 + 1000/2 )/1000 + Offset;   /*  整数四舍五入 1000/2 */
+				uint16_t mv = 0;
+				uint16_t d = 0;
+				mv = (GAIN14 * adc14 + 1000/2 )/1000 + Offset;
+				if(last_v[i] == 0 || (mv > last_v[i] ? mv - last_v[i] : last_v[i] - mv) <= 50)
+				{
+					last_v[i] = mv;
+					cnt[i] = 0;
+				}
+				else if(cnt[i] == 0)
+				{
+					cand[i] = mv;
+					cnt[i] = 1;
+				}
+				else
+				{
+					d = (cand[i] > mv) ? (cand[i] - mv) : (mv - cand[i]);
+					if(d <= 50 && ++cnt[i] >= 2)
+					{
+						last_v[i] = mv;
+						cnt[i] = 0;
+					}
+					else
+					{
+						cand[i] = mv;
+						cnt[i] = 1;
+					}
+				}
+				g_bms.Cell_mv[i] = last_v[i];
 			}
 			if(cell_used[i])
 				V_total += g_bms.Cell_mv[i];			
