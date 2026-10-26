@@ -4,8 +4,12 @@
 
 先看效果（都是真机录的）：
 
+- 动态预览 8 秒（真机在跑）：
+
+![动态预览](docs/demo.gif)
+
 - 演示视频 57 秒：`docs/demo.mp4`
-- 上位机截图（当时正在均衡 Cell1、Cell7、Cell11）：
+- 上位机截图（当时正在均衡 Cell1、Cell5、Cell7、Cell10、Cell12、Cell15）：
 
 ![上位机](docs/host_gui.png)
 
