@@ -16,7 +16,7 @@ static uint16_t last_mv;																													/* 锚定变量 */
 static float soc_acc = 0.0f; 																											/* 安时积分法累计的电量变化*/
 volatile uint8_t g_socinit_flag = 0;																							/* SOC初始化标志位 */
 
-static bool SOC_OCV(uint16_t min_mv);
+static bool SOC_OCV(uint16_t median_mv);
 
 /* 均衡期间 CC 被污染，导致判断是否静置和安时积分法不准确。均衡期间不做SOC更新，只做显示。 */
 /* 任务 1 秒跑一次，取当前这一瞬间的电流，当作这 1s 窗口的平均电流 精度低一点，但是不用高频采样，减少CPU占用 */
@@ -24,7 +24,7 @@ static bool SOC_OCV(uint16_t min_mv);
 void SOC_Est(void)
 {
 		static TickType_t tick_start = 0;
-		uint16_t min_mv = 0;
+		uint16_t median_mv = 0;
 		static uint8_t cnt = 0;
 		static float offset = 0.0f;
 		float cur_cet = 0.0f;
@@ -72,27 +72,27 @@ void SOC_Est(void)
 				tick_start = xTaskGetTickCount();
 			else if((xTaskGetTickCount() - tick_start) >= pdMS_TO_TICKS(5 * 60 * 1000))   	/* OCV开路法，静置5分钟 */
 			{
-					min_mv = v_cell_min();
+					median_mv = v_cell_median();
 /* 拿到min_mv之后，进入一致性门判断 */			
-				if(last_mv != 0 && (min_mv - last_mv > 30 || min_mv - last_mv < -30))
+				if(last_mv != 0 && (median_mv - last_mv > 30 || median_mv - last_mv < -30))
 				{
 						if(++cnt >= 2)																											/* 连续2次都是突变才更新SOC */
 						{
-							if(SOC_OCV(min_mv))																										/* 读取的SOC是否正确的 */
+							if(SOC_OCV(median_mv))																										/* 读取的SOC是否正确的 */
 							{
 								soc_acc = 0.0f;																																/* OCV得出新的SOC，清零soc_acc重新累加 */
-								last_mv = min_mv;																															/* 锚点：把当前这个跳变很大的电压存起来，作为下一轮的对比基准，持续观察这个新电压能不能稳住，判断是不是真的是干扰 */
+								last_mv = median_mv;																															/* 锚点：把当前这个跳变很大的电压存起来，作为下一轮的对比基准，持续观察这个新电压能不能稳住，判断是不是真的是干扰 */
 								cnt = 0;
-								printf("OCV测得SOC：%d (Vmin=%dmV)\r\n", g_bms.socX10 / 10, min_mv);
+								printf("OCV测得SOC：%d (Vmed=%dmV)\r\n", g_bms.socX10 / 10, median_mv);
 							}
 						}
 				}
 				else
 				{	
-					if(SOC_OCV(min_mv))
+					if(SOC_OCV(median_mv))
 					{
 						soc_acc = 0.0f;																																/* OCV得出新的SOC，清零soc_acc重新累加 */
-						last_mv = min_mv;
+						last_mv = median_mv;
 						cnt = 0;
 						printf("初始化SOC：%d.%d\r\n", g_bms.socX10 / 10, g_bms.socX10 % 10);
 					}
@@ -108,13 +108,13 @@ void SOC_Est(void)
 /* 断电期间电池本来就是静置的，直接OCV锚定一次SOC */
 void Init_SOC(void)
 {
-		uint16_t min_mv = v_cell_min();
+		uint16_t median_mv = v_cell_median();
 		static uint8_t Err_flag = 0;
-		if(SOC_OCV(min_mv))
+		if(SOC_OCV(median_mv))
 		{
 			soc_acc = 0.0f;																																	/* OCV得出新的SOC，清零soc_acc重新累加 */
 			printf("OCV锚定SOC：%d.%d%%\r\n", g_bms.socX10 / 10, g_bms.socX10 % 10);	
-			last_mv = min_mv;
+			last_mv = median_mv;
 			g_socinit_flag = 1;
 			Err_flag = 0;
 		}
@@ -127,41 +127,67 @@ void Init_SOC(void)
 
 
 /*--------------------------------------------------------------------------------------------------------------*/
+/* 由于cell5 cell6坏通道电压偏低，不选择使用最低的电压 */
+///* 遍历 找最小单体电压 */
+//uint16_t v_cell_min(void)
+//{
+//		uint16_t min_mv = 0;
+//		for(uint8_t i = 0; i<15; i++)																									/* 遍历 找第一节使用的电池电压赋值给min_mv */
+//		{
+//			if(cell_used[i] == 1)
+//			{
+//				min_mv = g_bms.Cell_mv[i];
+//				break;
+//			}
+//		}
+//		for(uint8_t i = 0; i<15; i++)																									/* 遍历 找最小单体电压 */
+//		{
+//			if(cell_used[i] == 1)
+//			{
+//				if(g_bms.Cell_mv[i] < min_mv)
+//					min_mv = g_bms.Cell_mv[i];
+//			}
+//		}
+//		return min_mv;
+//}
 
-/* 遍历 找最小单体电压 */
-uint16_t v_cell_min(void)
+/* 遍历 从小到大排序 找中位数单体电压 */
+uint16_t v_cell_median(void)
 {
-		uint16_t min_mv = 0;
-		for(uint8_t i = 0; i<15; i++)																									/* 遍历 找第一节使用的电池电压赋值给min_mv */
+		uint8_t n = 0;
+		uint16_t a[15] = { 0 };
+		uint16_t key = 0;
+		int8_t j = 0;
+		for(uint8_t i = 0; i<15; i++)
 		{
 			if(cell_used[i] == 1)
-			{
-				min_mv = g_bms.Cell_mv[i];
-				break;
-			}
+				a[n++] = g_bms.Cell_mv[i];
 		}
-		for(uint8_t i = 0; i<15; i++)																									/* 遍历 找最小单体电压 */
+		for(uint8_t i = 1; i < n; i++)	/* 插入排序 */
 		{
-			if(cell_used[i] == 1)
+			key = a[i];
+			j = i - 1;
+			while(j >= 0 && a[j] > key)		/* 循环判断key与每一个元素的大小对比 */
 			{
-				if(g_bms.Cell_mv[i] < min_mv)
-					min_mv = g_bms.Cell_mv[i];
+				a[j + 1] = a[j];
+				j--;
 			}
+			a[j + 1] = key;   						/* 将key移动到适当位置 */
 		}
-		return min_mv;
+		return a[n / 2];
 }
 
 /* OCV线性插值法 */
-static bool SOC_OCV(uint16_t min_mv)
+static bool SOC_OCV(uint16_t median_mv)
 {
-		if(min_mv < 2500 || min_mv > 4300)																						/* 不合理读数舍弃 */
+		if(median_mv < 2500 || median_mv > 4300)																						/* 不合理读数舍弃 */
 			return false;
-		if(min_mv <= OCV_SOC_MV[0])																										/* 电压<=3.0V，SOC取0 */
+		if(median_mv <= OCV_SOC_MV[0])																										/* 电压<=3.0V，SOC取0 */
 		{
 			g_bms.socX10 = 0;
 			return true;
 		}
-		if(min_mv >= OCV_SOC_MV[10])																									/* 电压>=4.2V，SOC取100 */
+		if(median_mv >= OCV_SOC_MV[10])																									/* 电压>=4.2V，SOC取100 */
 		{
 			g_bms.socX10 = 1000;
 			return true;
@@ -169,15 +195,15 @@ static bool SOC_OCV(uint16_t min_mv)
 		
 		for(uint8_t j = 0; j < 11; j++)																								
 		{
-			if(min_mv == OCV_SOC_MV[j])																									/* 电压恰好等于对应SOC */
+			if(median_mv == OCV_SOC_MV[j])																									/* 电压恰好等于对应SOC */
 			{
 				g_bms.socX10 = 100*j;
 				return true;
 			}
-			else if(j < 10 && OCV_SOC_MV[j] < min_mv && min_mv < OCV_SOC_MV[j +1])			/* 电压在两个SOC之间 用线性插值法 */
+			else if(j < 10 && OCV_SOC_MV[j] < median_mv && median_mv < OCV_SOC_MV[j +1])			/* 电压在两个SOC之间 用线性插值法 */
 			{
 				g_bms.socX10 = (uint16_t)(10.0f * (10.0f*j + (10.0f * (j+1) - 10.0f * j) * 
-				(float)(min_mv - OCV_SOC_MV[j]) / (float)(OCV_SOC_MV[j + 1] - OCV_SOC_MV[j])) + 0.5f);     /* + 0.5f四舍五入 */
+				(float)(median_mv - OCV_SOC_MV[j]) / (float)(OCV_SOC_MV[j + 1] - OCV_SOC_MV[j])) + 0.5f);     /* + 0.5f四舍五入 */
 				return true;
 			}
 		}

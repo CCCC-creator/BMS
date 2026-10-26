@@ -185,8 +185,7 @@ void BQ_GetTem(void)
 		}
 }
 
-/* 读所有电池电压及总电压
-	250ms 采集一次*/
+/* 读所有电池电压及总电压 250ms 采集一次*/
 static void BQ_GetAllCellV(void)
 {
 		uint16_t adc14 = 0;
@@ -194,13 +193,44 @@ static void BQ_GetAllCellV(void)
 		int V_total = 0;
 		uint8_t VC_HI = VC1_HI;
 		uint8_t VC_LO = VC1_LO;
+		static uint16_t last_v[15] = { 0 };
+		static uint16_t cand[15] = { 0 };
+		static uint16_t cnt[15] = { 0 };
 		for(int i = 0; i<15; i++)
 		{
 			v[0] = v[1] = 0;																			/*  防止读失败把上一节的读到的电池电压值用 */
 			if(BQ_ReadBlock(VC_HI, v, 2) == HAL_OK)								/*  如果读取失败，直接丢弃，保持上一轮的电压值 */
 			{
+				uint16_t mv = 0;
+				uint16_t d = 0;
 				adc14 = ((uint16_t) (v[0] & 0x3F) << 8 ) | v[1];
-				g_bms.Cell_mv[i] = (GAIN14 * adc14 + 1000/2 )/1000 + Offset;   /*  整数四舍五入 1000/2 */
+				mv = (GAIN14 * adc14 + 1000/2 )/1000 + Offset;  		/* 整数四舍五入 1000/2 存当前得到的电压 接下来判断是否合法*/
+				if(last_v[i] == 0 || (mv > last_v[i] ? mv - last_v[i] : last_v[i] - mv) <= 50)
+				{
+					last_v[i] = mv;																		/* 正常范围，直接接受 */
+					cnt[i] = 0;
+				}
+/* 非正常范围 待判断 */
+				else if(cnt[i] == 0)																/* 第一次大偏离：记候选，等下一拍 */
+				{
+					cand[i] = mv;																		
+					cnt[i] = 1;																				/* 第一拍 */		
+				}
+				else
+				{
+					d = (cand[i] > mv ? cand[i] - mv : mv - cand[i]);/* 候选 vs 本次采样 */
+					if(d <= 50 && ++cnt[i] >= 2)											/* 仍在候选附近且第2拍：确认真变化 */
+					{
+						last_v[i] = mv;
+						cnt[i] = 0;
+					}
+					else																							/* 候选又变了，重新数 */
+					{
+						cand[i] = mv;																		
+						cnt[i] = 1;							
+					}
+				}
+				g_bms.Cell_mv[i] = last_v[i];									/* 正常范围内就是本次测出的电压，若非正常范围经过判断没问题就是本次测出电压，在判断拍子时都是用没有问题时的电压 */
 			}
 			if(cell_used[i])
 				V_total += g_bms.Cell_mv[i];			
