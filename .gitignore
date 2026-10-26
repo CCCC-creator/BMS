@@ -32,3 +32,5 @@ MDK-ARM/build_log.txt
 /BMS-FreeRTOS-modbus/
 /BMS-FreeRTOS-canopen/
 MDK-ARM/tem.uvoptx
+__pycache__/
+*.pyc

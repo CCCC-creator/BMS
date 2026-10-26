@@ -323,6 +323,7 @@ class App:
         self.last_bal = -1
         self._ui_cache = {}          # 控件上次绘制状态：变化才重绘（防闪烁/抖动）
         self._bar_w = {}
+        self._prev_cells = None      # 上一拍单体电压，用于跳变检测
 
         root.title("BMS 上位机 · Modbus RTU (9600 8N1)")
         root.configure(bg=PAGE)
@@ -648,6 +649,15 @@ class App:
 
         # --- 单体电压瓦片（所有控件“变化才改”，避免每秒重绘抖动）---
         vals = [regs[2 + i] if regs[1] & (1 << i) else None for i in range(15)]
+
+        # 跳变检测：相邻两拍某节变化 >=50mV 记一笔（排查采样毛刺/接触不良）
+        if self._prev_cells is not None:
+            for i, v in enumerate(vals):
+                old_v = self._prev_cells[i]
+                if v is not None and old_v is not None and abs(v - old_v) >= 50:
+                    self.log(f"跳变 Cell{i + 1}: {old_v}→{v} mV（总压 {regs[17]} mV）")
+        self._prev_cells = vals
+
         live = [v for v in vals if v is not None]
         vmin, vmax = (min(live), max(live)) if live else (0, 0)
         bal = regs[22]
