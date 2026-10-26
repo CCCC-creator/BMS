@@ -30,7 +30,7 @@ flowchart LR
     MCU -- "SYS_CTRL2 开关管 · CELLBAL 均衡 · 保护阈值" --> AFE
     AFE -- "CHG / DSG 栅极驱动" --> MOS
     MOS -- "主电流回路" --> CELLS
-    MCU <-. "USART1 · 9600 8N1 · Modbus RTU 从站 1" .-> USB
+    MCU <-->|"USART1 · 9600 8N1 · Modbus RTU 从站 1"| USB
     USB <-->|"FC03 / FC06 / FC01 / FC05"| PC
     IWDG["IWDG 独立看门狗"] --- MCU
 ```
