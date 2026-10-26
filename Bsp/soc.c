@@ -69,7 +69,7 @@ void SOC_Est(void)
 				tick_start = xTaskGetTickCount();
 			else if((xTaskGetTickCount() - tick_start) >= pdMS_TO_TICKS(5 * 60 * 1000))   	/* OCV开路法，静置5分钟 */
 			{
-					min_mv = v_cell_min();
+					min_mv = v_cell_median();
 /* 拿到min_mv之后，进入一致性门判断 */			
 				if(last_mv != 0 && (min_mv - last_mv > 30 || min_mv - last_mv < -30))
 				{
@@ -103,7 +103,7 @@ void SOC_Est(void)
 /* 断电期间电池本来就是静置的，直接OCV锚定一次SOC */
 void Init_SOC(void)
 {
-		uint16_t min_mv = v_cell_min();
+		uint16_t min_mv = v_cell_median();
 		static uint8_t Err_flag = 0;
 		if(SOC_OCV(min_mv))
 		{
@@ -121,27 +121,30 @@ void Init_SOC(void)
 
 /*--------------------------------------------------------------------------------------------------------------*/
 
-/* 遍历 找最小单体电压 */
-uint16_t v_cell_min(void)
+/* 遍历 从小到大排序 找中位数单体电压 */
+uint16_t v_cell_median(void)
 {
-		uint16_t min_mv = 0;
-		for(uint8_t i = 0; i<15; i++)																									/* 遍历 找第一节使用的电池电压赋值给min_mv */
+		uint8_t n = 0;
+		uint16_t a[15] = { 0 };
+		uint16_t key = 0;
+		int8_t j = 0;
+		for(uint8_t i = 0; i<15; i++)
 		{
 			if(cell_used[i] == 1)
-			{
-				min_mv = g_bms.Cell_mv[i];
-				break;
-			}
+				a[n++] = g_bms.Cell_mv[i];
 		}
-		for(uint8_t i = 0; i<15; i++)																									/* 遍历 找最小单体电压 */
+		for(uint8_t i = 1; i < n; i++)
 		{
-			if(cell_used[i] == 1)
+			key = a[i];
+			j = i - 1;
+			while(j >= 0 && a[j] > key)		/* 循环判断key与每一个元素的大小对比 */
 			{
-				if(g_bms.Cell_mv[i] < min_mv)
-					min_mv = g_bms.Cell_mv[i];
+				a[j + 1] = a[j];
+				j--;
 			}
+			a[j + 1] = key;   						/* 将key移动到适当位置 */
 		}
-		return min_mv;
+		return a[n / 2];
 }
 
 /* OCV线性插值法 */
