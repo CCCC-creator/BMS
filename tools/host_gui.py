@@ -127,7 +127,7 @@ class Snapshot:
     __slots__ = ("regs", "coils", "ok", "err_text", "demo")
 
     def __init__(self, regs=None, coils=None, ok=False, err_text="", demo=False):
-        self.regs = regs or [0] * 25
+        self.regs = regs or [0] * 24
         self.coils = coils or [False] * 3
         self.ok = ok
         self.err_text = err_text
@@ -142,10 +142,6 @@ FAULT_BITS = [
 FAULT_SHORT = {0x01: "过压", 0x02: "欠压", 0x04: "充电过流", 0x08: "放电过流",
                0x10: "短路", 0x20: "过温", 0x40: "低温"}
 CELL_NAMES = [f"Cell{i + 1}" for i in range(15)]
-
-# bq76940 SYS_STAT 位定义（寄存器 24）
-SYS_BITS = [(0x80, "CC就绪"), (0x20, "XREADY芯片异常"), (0x10, "ALERT"),
-            (0x08, "欠压UV"), (0x04, "过压OV"), (0x02, "短路SCD"), (0x01, "过流OCD")]
 
 
 def decode_faults(v: int):
@@ -199,7 +195,7 @@ class Worker(threading.Thread):
                 self.app.rx.put(self._demo_snapshot(t))
             else:
                 try:
-                    regs = master.read_holding(0, 25)
+                    regs = master.read_holding(0, 24)
                     coils = master.read_coils(0, 3)
                     self.app.rx.put(Snapshot(regs, coils, ok=True))
                 except Exception as e:
@@ -211,7 +207,7 @@ class Worker(threading.Thread):
     def _demo_snapshot(self, t: int) -> Snapshot:
         """无硬件演示数据：9 节慢波动、每 10s 一批均衡、周期性演示一次欠压。"""
         used = [0, 1, 4, 5, 6, 9, 10, 11, 14]          # 与固件 cell_used 一致
-        regs = [0] * 25
+        regs = [0] * 24
         for i in used:
             regs[2 + i] = 3700 + int(18 * ((i * 37 + t) % 20 - 10))
         regs[2 + 5] = 3540                              # Cell6 偏低制造压差
@@ -225,7 +221,6 @@ class Worker(threading.Thread):
         bal = 0x0003 if (t // 10) % 2 else 0
         regs[22] = bal
         regs[23] = 0x02 if regs[21] else 0x03
-        regs[24] = 0x80                                 # SYS_STAT: 仅 CC_READY
         return Snapshot(regs, list(self.app.demo_coils), ok=True, demo=True)
 
 
@@ -515,10 +510,7 @@ class App:
                                   width=33, anchor="w",
                                   font=("Microsoft YaHei UI", 11, "bold"),
                                   padx=12, pady=6)
-        self.lbl_fault.pack(anchor="w", padx=10, pady=(0, 4))
-        self.lbl_sys = tk.Label(p, text="芯片状态 --", bg=PANEL, fg=SUB,
-                                font=FONT_SM)
-        self.lbl_sys.pack(anchor="w", padx=10, pady=(0, 8))
+        self.lbl_fault.pack(anchor="w", padx=10, pady=(0, 10))
 
     def _build_ctrl(self, parent):
         p = panel(parent, "远程控制 · 线圈 0/1/2，点击卡片或开关切换请求")
@@ -563,7 +555,7 @@ class App:
     def _build_log(self, parent):
         p = panel(parent, "事件日志（边沿触发）")
         p.pack(fill="x", expand=False, padx=12, pady=(8, 12))
-        self.txt_log = tk.Text(p, height=3, state="disabled", bg="#0b0d11",
+        self.txt_log = tk.Text(p, height=4, state="disabled", bg="#0b0d11",
                                fg="#9aa3b2", relief="flat", font=("Consolas", 9),
                                insertbackground=TXT)
         self.txt_log.pack(fill="both", expand=True, padx=8, pady=(0, 8))
@@ -647,7 +639,7 @@ class App:
             if self.err_count == 1 or self.err_count % 10 == 0:
                 self.log(f"通信失败({self.err_count}): {s.err_text}")
             return
-        if not s.demo and s.err_text == "" and s.regs == [0] * 25:
+        if not s.demo and s.err_text == "" and s.regs == [0] * 24:
             self.set_online(True)
             return
         self.set_online(True)
@@ -729,17 +721,6 @@ class App:
                 if 0 <= self.last_fault != regs[21]:
                     self.log(f"故障出现: {'、'.join(names)} (0x{regs[21]:02X})")
             self.last_fault = regs[21]
-
-        # 芯片状态 SYS_STAT（寄存器 24，诊断用；旧固件没有该寄存器时降级显示）
-        if len(regs) > 24:
-            sv = regs[24]
-            bad = [n for b, n in SYS_BITS if (sv & b) and b != 0x80]
-            self._set(("sys",), self.lbl_sys,
-                      text=f"芯片状态 SYS_STAT=0x{sv:02X}  " +
-                           (" ".join(bad) if bad else "CC就绪（正常）"),
-                      fg=AMBER if bad else SUB)
-        else:
-            self._set(("sys",), self.lbl_sys, text="芯片状态 --（固件无寄存器24）", fg=GREY)
 
         # --- 控制卡片 ---
         chg_on, dsg_on = bool(regs[23] & 1), bool(regs[23] & 2)

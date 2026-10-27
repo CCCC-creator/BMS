@@ -28,7 +28,6 @@ typedef struct {
 		int16_t Ah_socX10;									/* 安时积分法SOC */
 		uint16_t bal_mask;									/* 均衡位图 */
 		uint8_t MOS_Status;            			/* 当前MOS状态 */
-		uint8_t sys_stat;							/* SYS_STAT 原始值，诊断用（Modbus 寄存器 24） */
 } SampleDate;
 
 /* 任务心跳 */

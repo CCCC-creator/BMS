@@ -44,7 +44,7 @@ FreeModbus 传给回调的 `usAddress` 是寄存器编号（1 基），不是 PDU 里的 0 基偏移！
 
 // 保持寄存器（功能码03/06/16），报文地址0~9
 #define REG_HOLD_START  						1									/* 工程中大部分上位机和 PLC 只实现 03/06，主流 BMS 的寄存器表也是把测量值放在保持寄存器里 */
-#define REG_HOLD_NREGS  						25								/* +1: SYS_STAT 诊断寄存器 */
+#define REG_HOLD_NREGS  						24
 
 #define R_CELL_NCT									0									/* 有效电芯数量 */
 #define R_CELL_MAP  								1									/* 使用了的电芯位图 */
@@ -56,7 +56,6 @@ FreeModbus 传给回调的 `usAddress` 是寄存器编号（1 基），不是 PDU 里的 0 基偏移！
 #define R_FAULT											21								/* 故障位图，和 g_bms.fault 同位 */
 #define R_BAL_MASK  								22								/* 1=均衡中 */
 #define R_MOS												23								/* 存放MOS状态 */
-#define R_SYSSTAT								24								/* SYS_STAT 原始值（诊断用） */
 
 // 线圈（功能码01/05/15），报文地址0~7
 #define REG_COIL_START  						1
@@ -263,8 +262,7 @@ void FreeModbus_RTU_Task( void *pvParameters )
 				usRegHoldingBuf[R_TEMP] = (USHORT)(int16_t)data.TemX10;
 				usRegHoldingBuf[R_FAULT] = (USHORT)data.fault;
 				usRegHoldingBuf[R_BAL_MASK] = (USHORT)data.bal_mask;
-				usRegHoldingBuf[R_MOS] = g_bms.MOS_Status;
-				usRegHoldingBuf[R_SYSSTAT] = data.sys_stat;
+				usRegHoldingBuf[R_MOS] = data.MOS_Status;
 				
         ( void )eMBPoll(  );   // Modbus事件轮询；xMBPortEventGet最多阻塞10ms，此处无需额外延时
 				hb.hb_Modbus++;
