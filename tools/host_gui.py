@@ -19,6 +19,7 @@ BMS 上位机 · Modbus RTU 从站监控/控制
 运行：双击 启动上位机.bat，或  python host_gui.py   （不接硬件可勾选"演示模式"）
 """
 
+import math
 import queue
 import threading
 import time
@@ -213,7 +214,7 @@ class Worker(threading.Thread):
         used = [0, 1, 4, 5, 6, 9, 10, 11, 14]          # 与固件 cell_used 一致
         regs = [0] * 25
         for i in used:
-            regs[2 + i] = 3700 + int(18 * ((i * 37 + t) % 20 - 10))
+            regs[2 + i] = 3700 + int(18 * math.sin(i * 1.3 + t * 0.35))
         regs[2 + 5] = 3540                              # Cell6 偏低制造压差
         regs[0] = len(used)
         regs[1] = sum(1 << i for i in used)
@@ -332,8 +333,8 @@ class App:
 
         root.title("BMS 上位机 · Modbus RTU (9600 8N1)")
         root.configure(bg=PAGE)
-        root.geometry("1180x860")
-        root.minsize(1040, 740)
+        root.geometry("1180x880")
+        root.minsize(1040, 760)
         dark_titlebar(root)
         self._build()
         self.refresh_ports()
@@ -344,7 +345,7 @@ class App:
     def _center(self):
         try:
             self.root.update_idletasks()
-            w, h = 1180, 860
+            w, h = 1180, 880
             x = (self.root.winfo_screenwidth() - w) // 2
             y = (self.root.winfo_screenheight() - h) // 2 - 20
             self.root.geometry(f"{w}x{h}+{x}+{y}")
@@ -462,11 +463,11 @@ class App:
                         highlightbackground=BORDER)
         card.grid(row=row, column=col, sticky="nsew", padx=2, pady=2)
         tk.Label(card, text=label, bg=CARD, fg=SUB, font=FONT_SM).pack(
-            anchor="w", padx=10, pady=(7, 0))
+            anchor="w", padx=10, pady=(5, 0))
         var = tk.StringVar(value="--")
         tk.Label(card, textvariable=var, bg=CARD, fg=TXT, width=10, anchor="w",
                  font=FONT_BIG if big else ("Consolas", 12, "bold")).pack(
-            anchor="w", padx=10, pady=(0, 7))
+            anchor="w", padx=10, pady=(0, 4))
         return card, var
 
     def _build_summary(self, parent):
@@ -491,7 +492,7 @@ class App:
         tk.Label(top, textvariable=self.var_soc, bg=CARD, fg=GREEN, width=8,
                  anchor="e", font=("Consolas", 15, "bold")).pack(side="right")
         self.soc_bar = tk.Canvas(soccard, width=10, height=12, bg=CARD, highlightthickness=0)
-        self.soc_bar.pack(fill="x", padx=10, pady=(2, 8))
+        self.soc_bar.pack(fill="x", padx=10, pady=(2, 6))
         self.soc_bar.bind("<Configure>", lambda e: self._ui_cache.pop(("socbar",), None))
 
         _, self.var_cur = self._kpi(grid, "电流 mA（放电为正）", 2, 0)
@@ -535,7 +536,7 @@ class App:
                             highlightbackground=BORDER, cursor="hand2")
             card.pack(fill="x", pady=3)
             head = tk.Frame(card, bg=CARD)
-            head.pack(fill="x", padx=12, pady=(8, 0))
+            head.pack(fill="x", padx=12, pady=(6, 0))
             lbl_title = tk.Label(head, text=title, bg=CARD, fg=TXT,
                                  font=("Microsoft YaHei UI", 11, "bold"))
             lbl_title.pack(side="left")
@@ -547,7 +548,7 @@ class App:
                                  font=("Microsoft YaHei UI", 9, "bold"))
             lbl_state.pack(side="right", padx=8)
             lbl_actual = tk.Label(card, text=actual, bg=CARD, fg=SUB, font=FONT_SM, width=42, anchor="w")
-            lbl_actual.pack(anchor="w", padx=12, pady=(1, 8))
+            lbl_actual.pack(anchor="w", padx=12, pady=(1, 6))
             for w in (card, head, lbl_title, lbl_state, lbl_actual):
                 w.bind("<Button-1>", lambda e, i=i: self.on_coil_click(i))
             self.coil_cards.append({"frame": card, "state": lbl_state,
@@ -563,7 +564,7 @@ class App:
     def _build_log(self, parent):
         p = panel(parent, "事件日志（边沿触发）")
         p.pack(fill="x", expand=False, padx=12, pady=(8, 12))
-        self.txt_log = tk.Text(p, height=3, state="disabled", bg="#0b0d11",
+        self.txt_log = tk.Text(p, height=6, state="disabled", bg="#0b0d11",
                                fg="#9aa3b2", relief="flat", font=("Consolas", 9),
                                insertbackground=TXT)
         self.txt_log.pack(fill="both", expand=True, padx=8, pady=(0, 8))
