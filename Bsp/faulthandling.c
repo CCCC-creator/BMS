@@ -11,6 +11,8 @@
 #define SYS_STAT_OV													(1U << 2)				/* 硬件过压的位 写一清除 */
 #define SYS_STAT_SCD												(1U << 1)
 #define SYS_STAT_OCD												(1U << 0)
+#define SYS_STAT_ALERT							(1U << 4)
+#define SYS_STAT_XREADY					(1U << 5)
 
 /* 注意：会与故障一起判断该不该开关 */
 volatile uint8_t CHG_enable = 1;																	/* 上位机管理充电MOS 0：关闭  1：开启 上电默认 1 */
@@ -72,6 +74,23 @@ void ClearFaultStatus(void)
 		BQ_WriteReg(SYS_STAT, SYS_STAT_OCD);	
 	if((g_bms.fault & FLAG_SC) != FLAG_SC && (sys_stat & SYS_STAT_SCD) == SYS_STAT_SCD)
 		BQ_WriteReg(SYS_STAT, SYS_STAT_SCD);
+
+/* DEVICE_XREADY(bit5): 芯片内部故障锁存, 只能主机写1清; 连续2s(8拍)仍在才清, 避免反复清瞬时扰动 */
+	static uint8_t xready_cnt = 0;
+	if(sys_stat & SYS_STAT_XREADY)
+	{
+		if(++xready_cnt >= 8)
+		{
+			BQ_WriteReg(SYS_STAT, SYS_STAT_XREADY);
+			xready_cnt = 0;
+		}
+	}
+	else
+		xready_cnt = 0;
+
+/* OVRD_ALERT(bit4): ALERT引脚被外部强制, 外部撤销后由主机写1清 */
+	if(sys_stat & SYS_STAT_ALERT)
+		BQ_WriteReg(SYS_STAT, SYS_STAT_ALERT);
 //	printf("sys_stat=0x%02X\r\n", sys_stat);
 }
 
