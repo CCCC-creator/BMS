@@ -20,6 +20,7 @@
 #define BIT_SHUT_A								(1U << 1)
 #define BIT_TEMP_SEL							(1U << 3)
 #define BIT_ADC_EN								(1U << 4)
+#define CC_READY								(1U << 7)
 #define SYS_STAT										0x00
 #define CELLBAL1										0x01
 #define CELLBAL2										0x02
@@ -151,8 +152,13 @@ static void BQ_GetCurr(void)
 		uint8_t v[2] = { 0 };
 		int cc = 0;
 		int Curr = 0;
+		uint8_t stat = 0;
 		if(g_balancing_active)																
 			return;																							/*  如果正在均衡（均衡期间CC值是假值），保持均衡前真实电流， */
+		if(BQ_ReadBlock(SYS_STAT, &stat, 1) != HAL_OK)
+			return;
+		if((stat & CC_READY) != CC_READY)
+			return;													/* CC_READY未置1: 没有新读数, 保持上一轮电流 */
 		if(BQ_ReadBlock(CC_HI, v, 2) == HAL_OK)								/*  如果读取失败，直接丢弃，保持上一轮的值 */
 		{	
 			cc = (int16_t)((uint16_t) (v[0] << 8 ) | v[1] );
@@ -162,6 +168,7 @@ static void BQ_GetCurr(void)
                         对应 cc=59 → k = 75.8mA/59 = 1.259mA/计数 = 1285μA */
 			Curr = (cc < 0) ? (cc * 1259 - 500) / 1000 : (cc * 1259 + 500) / 1000;				/* (cc×8.44μV)÷4mΩ×1000 = cc×2110μA。(cc×8.44μV)÷4mΩ 单位：mA。代码要用整数运算，×1000把最小单位取成μA。整数四舍五入 1000/2 = 500， 解决负数四舍五入问题 */
 			g_bms.Cur_ma = Curr;		
+			BQ_WriteReg(SYS_STAT, CC_READY);							/* 读完CC后主机写1清CC_READY */
 		}			
 }
 
