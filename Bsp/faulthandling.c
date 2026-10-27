@@ -7,7 +7,7 @@
 #include "stdio.h"
 
 
-#define SYS_STAT_DEVICE								(1U << 5)
+#define SYS_STAT_DEVICE											(1U << 5)
 #define SYS_STAT_UV													(1U << 3)      
 #define SYS_STAT_OV													(1U << 2)				/* 硬件过压的位 写一清除 */
 #define SYS_STAT_SCD												(1U << 1)
@@ -62,20 +62,20 @@ void FaultHandling(uint8_t flags)
 物理 FET 被硬件直接关掉（OV→断 CHG；UV/OCD/SCD→断 DSG）；
 SYS_STAT 里的标志被锁存为 1，不会自己消失；
 SYS_CTRL2 里对应的位会被芯片清 0，且芯片不会自己置回，必须主机重写  */
+/* ALERT引脚R34 470K 下拉到 GND、未接 MCU。所以OVRD_ALERT不用管 */
 void ClearFaultStatus(void)
 {
-	static uint8_t xready_cnt = 0;
-
-	/* DEVICE_XREADY: 芯片内部故障锁存, 只能主机写1清; 连续8拍(2s)仍在才清 */
+	static uint8_t n = 0;
 	if((sys_stat & SYS_STAT_DEVICE) == SYS_STAT_DEVICE)
 	{
-		if(++xready_cnt >= 8)
+		if(++n >= 8)															/* 连续8拍清除 2s */
 		{
 			BQ_WriteReg(SYS_STAT, SYS_STAT_DEVICE);
-			xready_cnt = 0;
+			n = 0;
 		}
 	}
-
+	
+	
 	if((g_bms.fault & FLAG_OV) != FLAG_OV && (sys_stat & SYS_STAT_OV) == SYS_STAT_OV)
 		BQ_WriteReg(SYS_STAT, SYS_STAT_OV);
 	if((g_bms.fault & FLAG_UV) != FLAG_UV && (sys_stat & SYS_STAT_UV) == SYS_STAT_UV)
