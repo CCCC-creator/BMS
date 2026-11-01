@@ -34,3 +34,6 @@ MDK-ARM/build_log.txt
 
 # Python
 __pycache__/
+
+# AI 工具本地配置
+.zcodeignore
