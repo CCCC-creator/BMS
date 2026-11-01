@@ -8,6 +8,7 @@
 
 ![动态预览](docs/demo.gif)
 
+- 演示视频 63 秒：`docs/demo_canopen.mp4`（连接 → 均衡 6 节 → 停发降级 → Reset Comm 恢复，全流程）
 - 配套上位机 `tools/canopen_gui.py`（python-can + tkinter）：TPDO 解码、单体电压格阵、SDO 轮询、EMCY 事件列表、控制字下发、NMT Start / Reset Comm 一键恢复。运行 `py -3 tools/canopen_gui.py`。
 
 ## 1. 总线参数
