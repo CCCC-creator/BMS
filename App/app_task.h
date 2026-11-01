@@ -27,7 +27,8 @@ typedef struct {
 		uint16_t socX10;										/* OCV得出SOC */
 		int16_t Ah_socX10;									/* 安时积分法SOC */
 		uint16_t bal_mask;									/* 均衡位图 */
-		uint8_t MOS_Status;            			/* 当前MOS状态 */
+		uint8_t MOS_Status;            			/* 当前充放电MOS状态 */
+		uint8_t sys_stat;										/* SYS_STAT 原始值，诊断用硬件状态 */
 } SampleDate;
 
 /* 任务心跳 */
@@ -37,7 +38,7 @@ typedef struct {
 		uint32_t hb_protect;
 		uint32_t hb_soc;
 		uint32_t hb_Balancing;
-		uint32_t hb_Modbus;
+		uint32_t hb_Canopen;
 } Heartbeat;
 
 extern volatile SampleDate g_bms;

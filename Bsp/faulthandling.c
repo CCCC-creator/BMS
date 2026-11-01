@@ -35,6 +35,7 @@ void FaultHandling(uint8_t flags)
 必须主机重写，即使故障恢复了，也不会恢复MOS，所以要对比是当前的SYS_CTRL2状态才能避免。而且额外解决了I2C写失败，当软件以为写进去了的问题；	*/																																						
 		if(BQ_ReadBlock(SYS_STAT, &sys_stat, 1) != HAL_OK)
 			return;
+		g_bms.sys_stat = sys_stat;						/* 诊断：SYS_STAT 发给上位机 */
 		if(BQ_ReadBlock(SYS_CTRL2, &ctrl2, 1) != HAL_OK)
 			return;
 		MOS_now = (~ctrl2) & 0x03;			/* state是置1是关闭，而MOS_now是0为关闭，需要翻转 */
@@ -84,6 +85,5 @@ void ClearFaultStatus(void)
 		BQ_WriteReg(SYS_STAT, SYS_STAT_OCD);	
 	if((g_bms.fault & FLAG_SC) != FLAG_SC && (sys_stat & SYS_STAT_SCD) == SYS_STAT_SCD)
 		BQ_WriteReg(SYS_STAT, SYS_STAT_SCD);
-//	printf("sys_stat=0x%02X\r\n", sys_stat);
 }
 

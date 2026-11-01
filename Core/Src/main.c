@@ -18,10 +18,10 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "can.h"
 #include "i2c.h"
 #include "iwdg.h"
 #include "tim.h"
-#include "usart.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -97,9 +97,9 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_TIM4_Init();
-  MX_USART1_UART_Init();
   MX_I2C1_Init();
   MX_IWDG_Init();
+  MX_CAN_Init();
   /* USER CODE BEGIN 2 */
 				
 	BQ_Init();
@@ -174,12 +174,6 @@ void vAssertCalled( const char * pcFile, unsigned long ulLine )
   }
 }
 
-/* printf重定向 */
-int fputc(int ch, FILE *f)
-{
-    HAL_UART_Transmit(&huart1, (uint8_t *)&ch, 1, 100);
-    return ch;
-}
 
 /* configCHECK_FOR_STACK_OVERFLOW = 2：上下文切换时检测到任务栈溢出会进这里 */
 void vApplicationStackOverflowHook( TaskHandle_t xTask, char * pcTaskName )

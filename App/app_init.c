@@ -5,6 +5,7 @@
 #include "app_task.h"
 #include "queue.h"
 #include "semphr.h"
+#include "Canopen_app.h"
 
 
 /*    任务栈大小    */
@@ -14,6 +15,7 @@
 #define Monitor_STACK_SIZE 								110
 #define Soc_STACK_SIZE 										110
 #define Balancing_STACK_SIZE 							125
+#define Canopen_STACK_SIZE 								384
 
 
 /*    任务优先级    */
@@ -23,6 +25,7 @@
 #define Monitor_PRIORITY 									1
 #define Soc_PRIORITY 											2
 #define Balancing_PRIORITY 								2
+#define Canopen_PRIORITY 									2
 
 
 /*    任务控制块声明    */
@@ -32,6 +35,7 @@ static StaticTask_t PortectTaskTCB;
 static StaticTask_t MonitorTaskTCB;
 static StaticTask_t SocTaskTCB;
 static StaticTask_t BalancingTaskTCB;
+static StaticTask_t CanopenTaskTCB;
 
 
 /*    任务栈数组声明    */
@@ -41,6 +45,7 @@ static StackType_t PortectTaskStack[Portect_STACK_SIZE];
 static StackType_t MonitorTaskStack[Monitor_STACK_SIZE];
 static StackType_t SocTaskStack[Soc_STACK_SIZE];
 static StackType_t BalancingTaskStack[Balancing_STACK_SIZE];
+static StackType_t CanopenTaskStack[Canopen_STACK_SIZE];
 
 
 /*    任务句柄声明    */
@@ -50,6 +55,7 @@ TaskHandle_t PortectTaskHandle;
 TaskHandle_t MonitorTaskHandle;
 TaskHandle_t SocTaskHandle;
 TaskHandle_t BalancingTaskHandle;
+TaskHandle_t CanopenTaskHandle;
 
 
 
@@ -101,7 +107,15 @@ void App_Init(void)
 																						Balancing_PRIORITY,
 																						BalancingTaskStack,
 																						&BalancingTaskTCB );	
-																					
+
+	CanopenTaskHandle = xTaskCreateStatic( 	Canopen_Task,
+																					"CanopenTask",
+																					Canopen_STACK_SIZE,
+																					NULL,
+																					Canopen_PRIORITY,
+																					CanopenTaskStack,
+																					&CanopenTaskTCB );	
+																						
 	MonitorTaskHandle = xTaskCreateStatic( 	MonitorTask,
 																					"MonitorTask",
 																					Monitor_STACK_SIZE,

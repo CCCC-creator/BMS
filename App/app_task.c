@@ -83,11 +83,6 @@ void LEDTask(void *pvParameters)
 				if(cycle % 8 == 0)																											/* 采集温度芯片2s更新一次 2s打印一次数据 */
 				{
 						BQ_GetTem();																												/* 通过结构体传数据给PortectTask */
-						for (int i = 0; i < 15; i++)
-								printf("Cell%d = %dmV\r\n", i + 1 , g_bms.Cell_mv[i]);
-						printf("V_total = %dmV\r\n", g_bms.Total_mv);
-						printf("Fault=0x%02X\r\n", g_bms.fault);
-						printf("I=%dmA，T=%d.%d\r\n", g_bms.Cur_ma, g_bms.TemX10 / 10, g_bms.TemX10 % 10);
 						g_bms.ready = 1;																	/* 第一轮SampleTask结束 通知PortectTask */
 						cycle = 0;
 				}
@@ -134,7 +129,6 @@ void PortectTask(void *pvParameters)
 						MX_I2C1_Init();
 						I2C_Curr_Err = 0;
 					}
-			//printf("I2C I2C_Tolat_Err：%d，I2C_Curr_Err：%d\r\n",I2C_Tolat_Err, I2C_Curr_Err);   
 			vTaskDelayUntil(&xLastWakeTime,pdMS_TO_TICKS(250));
 			hb.hb_protect++;
 			}
