@@ -154,7 +154,7 @@ static CO_PROGMEM ODObjs_t ODObjs = {
     },
     .o_1001_errorRegister = {
         .dataOrig = &OD_RAM.x1001_errorRegister,
-        .attribute = ODA_TPDO,
+        .attribute = ODA_SDO_R | ODA_TPDO,
         .dataLength = 1
     },
     .o_1003_predefineErrorField = {

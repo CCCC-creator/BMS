@@ -15,7 +15,7 @@
         <ProfileTechnology>CANopen</ProfileTechnology>
       </ISO15745Reference>
     </ProfileHeader>
-    <ProfileBody xmlns:q1="http://www.canopen.org/xml/1.1" xsi:type="q1:ProfileBody_Device_CANopen" formatName="CANopen" formatVersion="1.0" fileName="project.xdd" fileCreator="" fileCreationDate="2026-10-28" fileCreationTime="22:15:41.0000000+08:00" fileModifiedBy="" fileModificationDate="2026-10-29" fileModificationTime="18:38:36.9836960+08:00" fileVersion="1" supportedLanguages="en" xmlns="">
+    <ProfileBody xmlns:q1="http://www.canopen.org/xml/1.1" xsi:type="q1:ProfileBody_Device_CANopen" formatName="CANopen" formatVersion="1.0" fileName="project.xdd" fileCreator="" fileCreationDate="2026-10-28" fileCreationTime="22:15:41.0000000+08:00" fileModifiedBy="" fileModificationDate="2026-11-01" fileModificationTime="16:40:26.9599138+08:00" fileVersion="1" supportedLanguages="en" xmlns="">
       <q1:DeviceIdentity>
         <q1:vendorName></q1:vendorName>
         <q1:vendorID></q1:vendorID>
@@ -218,7 +218,7 @@
             <q1:property name="CO_countLabel" value="NMT" />
             <q1:property name="CO_storageGroup" value="PERSIST_COMM" />
           </q1:parameter>
-          <q1:parameter uniqueID="UID_OBJ_1001" access="noAccess">
+          <q1:parameter uniqueID="UID_OBJ_1001">
             <description lang="en">* bit 7: manufacturer specific
 * bit 6: Reserved (always 0)
 * bit 5: device profile specific
@@ -846,12 +846,12 @@
             <q1:defaultValue value="0" />
           </q1:parameter>
           <q1:parameter uniqueID="UID_OBJ_200A">
-            <label lang="en">sys_state</label>
+            <label lang="en">sys_stat</label>
             <USINT />
             <q1:defaultValue value="0" />
           </q1:parameter>
           <q1:parameter uniqueID="UID_OBJ_200B">
-            <label lang="en">Bal+Mos</label>
+            <label lang="en">balAndMos</label>
             <USINT />
             <q1:defaultValue value="0" />
           </q1:parameter>
@@ -872,7 +872,7 @@
         <ProfileTechnology>CANopen</ProfileTechnology>
       </ISO15745Reference>
     </ProfileHeader>
-    <ProfileBody xmlns:q2="http://www.canopen.org/xml/1.1" xsi:type="q2:ProfileBody_CommunicationNetwork_CANopen" formatName="CANopen" formatVersion="1.0" fileName="project.xdd" fileCreator="" fileCreationDate="2026-10-28" fileCreationTime="22:15:41.0000000+08:00" fileModificationDate="2026-10-29" fileModificationTime="18:38:36.9836960+08:00" fileVersion="1" supportedLanguages="en" xmlns="">
+    <ProfileBody xmlns:q2="http://www.canopen.org/xml/1.1" xsi:type="q2:ProfileBody_CommunicationNetwork_CANopen" formatName="CANopen" formatVersion="1.0" fileName="project.xdd" fileCreator="" fileCreationDate="2026-10-28" fileCreationTime="22:15:41.0000000+08:00" fileModificationDate="2026-11-01" fileModificationTime="16:40:26.9599138+08:00" fileVersion="1" supportedLanguages="en" xmlns="">
       <ApplicationLayers>
         <q2:CANopenObjectList>
           <CANopenObject index="1000" name="Device type" objectType="7" PDOmapping="no" uniqueIDRef="UID_OBJ_1000" />
@@ -998,8 +998,8 @@
           <CANopenObject index="2007" name="Fault" objectType="7" PDOmapping="TPDO" uniqueIDRef="UID_OBJ_2007" />
           <CANopenObject index="2008" name="Bal_mask" objectType="7" PDOmapping="TPDO" uniqueIDRef="UID_OBJ_2008" />
           <CANopenObject index="2009" name="MOS_status" objectType="7" PDOmapping="TPDO" uniqueIDRef="UID_OBJ_2009" />
-          <CANopenObject index="200A" name="sys_state" objectType="7" PDOmapping="TPDO" uniqueIDRef="UID_OBJ_200A" />
-          <CANopenObject index="200B" name="Bal+Mos" objectType="7" PDOmapping="RPDO" uniqueIDRef="UID_OBJ_200B" />
+          <CANopenObject index="200A" name="sys_stat" objectType="7" PDOmapping="TPDO" uniqueIDRef="UID_OBJ_200A" />
+          <CANopenObject index="200B" name="balAndMos" objectType="7" PDOmapping="RPDO" uniqueIDRef="UID_OBJ_200B" />
         </q2:CANopenObjectList>
         <dummyUsage>
           <dummy entry="Dummy0001=0" />
