@@ -6,7 +6,6 @@
 
 ![](docs/canopen_gui.png)
 
-- 演示视频 63 秒：`docs/demo_canopen.mp4`（真机在跑，均衡中录制）
 - 配套上位机 `tools/canopen_gui.py`（python-can + tkinter）：TPDO 解码、单体电压格阵、SDO 轮询、EMCY 事件列表、控制字下发、NMT Start / Reset Comm 一键恢复。运行 `py -3 tools/canopen_gui.py`。
 
 ## 1. 总线参数
