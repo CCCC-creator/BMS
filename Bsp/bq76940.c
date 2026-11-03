@@ -70,8 +70,8 @@ static void BQ_GetCurr(void);
 static unsigned char CRC8(unsigned char *ptr, unsigned char len, unsigned char key);
 //static HAL_StatusTypeDef BQ_ReadReg(uint8_t reg, uint8_t *val);
 const uint8_t cell_used[15] = {1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1};   			/* 使用了的电池 */
-/* 主电流路径接触电阻（B+/B- 端子、镍片、焊点），单位 mΩ实测：0.9A 充电时 Cell1 偏高 154mV → 205mΩ，Cell15 偏高 185mV → 285mΩ */
-static const uint16_t R_contact[15] = {205, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 285};
+/* 主电流路径接触电阻（B+/B- 端子、镍片、焊点），单位 mΩ  数据都是经过充电前后电压差与电流实测得出 */
+static const uint16_t R_contact[15] = {170, 80, 0, 0, 60, 60, 85, 0, 0, 55, 70, 95, 0, 0, 200};
 
 static uint16_t GAIN14;														/* 微伏 */
 static int8_t Offset;															/* 毫伏 */
