@@ -121,7 +121,7 @@ uint8_t FaultCheck(void)
 时间窗：不是检测到一次超标就立刻报故障；必须连续超标，维持一段固定时间，才判定真实故障*/		
 		flag = 0;
 		if(g_balancing_active == 0 && g_bms.Cur_ma >= OC_THRESHOLD)  	/* 均衡期间 CC 不可信，跳过 */
-			flag |= FLAG_DOC;
+			flag |= FLAG_COC;
 		if(flag)
 		{
 			if(cnt_DOC1 < CONFIRM_N_CURR)														/* 250ms * 4 = 1s 过滤噪声  成立：计数封顶  */
@@ -153,7 +153,7 @@ uint8_t FaultCheck(void)
 	
 		flag = 0;																
 		if(g_balancing_active == 0 && g_bms.Cur_ma <= -OC_THRESHOLD)  	/* 均衡期间 CC 不可信，跳过 */
-			flag |= FLAG_COC;
+			flag |= FLAG_DOC;
 		if(flag)
 		{
 			if(cnt_COC1 < CONFIRM_N_CURR)														/* 250ms * 4 = 1s 过滤噪声  成立：计数封顶  */

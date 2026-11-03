@@ -48,7 +48,7 @@
 
 
 /* 硬件保护 */
-#define OV_THRESHOLD								4300    	/* 阈值，单位：mV */
+#define OV_THRESHOLD								4460    	/* 阈值，单位：mV 实际：4300mv。这个值是直接用的ADC采样出来的，不经过补偿，经过计算得出需要设置成4460 */
 #define UV_THRESHOLD								2600			/* 阈值，单位：mV */
 #define OC_THRESHOLD								11000			/* 阈值，单位：mA */
 #define	SC_THRESHOLD								25000			/* 阈值，单位：mA */
@@ -69,6 +69,9 @@ static void BQ_GetCurr(void);
 static unsigned char CRC8(unsigned char *ptr, unsigned char len, unsigned char key);
 //static HAL_StatusTypeDef BQ_ReadReg(uint8_t reg, uint8_t *val);
 const uint8_t cell_used[15] = {1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1};   			/* 使用了的电池 */
+
+/* 主电流路径接触电阻（B+/B- 端子、镍片、焊点），单位 mΩ实测：0.9A 充电时 Cell1 偏高 154mV → 205mΩ，Cell15 偏高 185mV → 285mΩ */
+static const uint16_t R_contact[15] = {205, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 285};
 
 static uint16_t GAIN14;														/* 微伏 */
 static int8_t Offset;															/* 毫伏 */
@@ -110,8 +113,8 @@ V(cell) = GAIN x ADC(cell) + OFFSET
 增益以微伏/位为单位存储，而偏移量则以毫伏为单位存储。*/
 void BQ_GetAll(void)
 {
-		BQ_GetAllCellV();
 		BQ_GetCurr();
+		BQ_GetAllCellV();
 }
 
 
@@ -236,7 +239,15 @@ static void BQ_GetAllCellV(void)
 						cnt[i] = 1;
 					}
 				}
-				g_bms.Cell_mv[i] = last_v[i];
+				int MV = last_v[i];															/* 正常范围内就是本次测出的电压，若非正常范围经过判断没问题就是本次测出电压，在判断拍子时都是用没有问题时的电压 */
+				if(R_contact[i] != 0 && !g_balancing_active)		/* 充放电期间由于接触电阻的影响，测量的电压不准，需要补偿 */
+				{
+					int cur = g_bms.Cur_ma;
+					if (cur >  2000) cur =  2000;          /* 钳位：防假电流把电压拉飞  包括均衡结束瞬间后有概率读到假值 */
+					if (cur < -2000) cur = -2000;
+					MV -= (cur * (int)R_contact[i]) / 1000;
+				}
+				g_bms.Cell_mv[i] = MV;
 			}
 			if(cell_used[i])
 				V_total += g_bms.Cell_mv[i];			
@@ -286,7 +297,7 @@ static void BQ_ConfigProtect(void)
 		uint8_t OV_TRIP_FULL = 0;
 		uint8_t UV_TRIP_FULL = 0;
 		float t = GAIN14/1000.0f;   									/* μV 换 m V */
-		OV_TRIP_FULL = (uint8_t)((((unsigned int)((OV_THRESHOLD - Offset)/t + 0.5f)) >> 4 )& 0xFF);  /* 浮点数四舍五入公式：`float_val + 0.5f`，再强制转为整数。 过压：4300mV */
+		OV_TRIP_FULL = (uint8_t)((((unsigned int)((OV_THRESHOLD - Offset)/t + 0.5f)) >> 4 )& 0xFF);  /* 浮点数四舍五入公式：`float_val + 0.5f`，再强制转为整数。 */
 		UV_TRIP_FULL = (uint8_t)((((unsigned int)((UV_THRESHOLD - Offset)/t + 0.5f)) >> 4 )& 0xFF);		/* 欠压：2500mV */
 		BQ_WriteReg(OV_TRIP, OV_TRIP_FULL);
 		BQ_WriteReg(UV_TRIP, UV_TRIP_FULL);
