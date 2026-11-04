@@ -34,3 +34,6 @@ MDK-ARM/build_log.txt
 
 # AI 工具本地配置
 .zcodeignore
+
+# Keil 本地窗口布局
+MDK-ARM/*.uvoptx
