@@ -1,3 +1,15 @@
+# 9 串锂电池管理系统（BMS）
+
+基于 **STM32F103 + TI BQ76940** 的 9 串锂电池管理系统，FreeRTOS 多任务架构。本分支实现 **CANopen 从机**；另有 `modbus-rtu`（Modbus RTU 从机）与 `debug`（调试版）分支，三者共用同一套采样 / 保护 / 均衡 / SOC 代码，区别只在通信层与调试输出。
+
+- **功能**：AFE 采样、保护判据（OV/UV/OCD/SCD/OT/UT）、被动均衡、SOC 估算、CANopen 从机
+- **上位机**：`tools/canopen_gui.py`（python-can + tkinter），TPDO 解码、SDO 轮询、EMCY 列表、控制下发
+- **演示**：`docs/demo_canopen.mp4`（63 秒：连接 → 均衡 → 停发降级 → Reset Comm 恢复）
+- **编译**：Keil MDK 5 打开 `MDK-ARM/tem.uvprojx`，Rebuild 后 J-Link 下载
+- **问题排查记录**：[docs/问题排查记录.md](docs/问题排查记录.md)
+
+---
+
 # BMS 从机 CANopen 接口说明
 
 9 串锂电池 BMS（STM32F103 + bq76940）的 CANopen 从机接口。协议栈为 CANopenNode V4，对象字典由 CANopenEditor 生成（`Middleware/CANopen/OD/`，源文件 `project.xdd`）。
