@@ -31,3 +31,9 @@ MDK-ARM/build_log.txt
 /BMS-FreeRTOS-canopen/
 # AI 工具本地配置
 .zcodeignore
+
+# Python 缓存
+__pycache__/
+*.pyc
+# Keil 本地窗口布局
+MDK-ARM/tem.uvoptx
