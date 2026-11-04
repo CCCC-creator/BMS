@@ -115,7 +115,7 @@ void BQ_GetAll(void)
 {
 		BQ_GetCurr();
 		BQ_GetAllCellV();
-		printf("%d,%d,%d\r\n", g_bms.Cur_ma, g_bms.Cell_mv[0], g_bms.Cell_mv[14]);
+//		printf("%d,%d,%d\r\n", g_bms.Cur_ma, g_bms.Cell_mv[0], g_bms.Cell_mv[14]);
 }
 
 
@@ -166,11 +166,12 @@ static void BQ_GetCurr(void)
 		if(BQ_ReadBlock(CC_HI, v, 2) == HAL_OK)								/*  如果读取失败，直接丢弃，保持上一轮的值 */
 		{	
 			cc = (int16_t)((uint16_t) (v[0] << 8 ) | v[1] );
+			printf("CC：%d\r\n", cc);
 /* I(μA) = cc × k，k 为实测标定值
    理论值：8.44μV/LSB ÷ 4mΩ = 2.11mA/计数 = 2110μA  ← 与实物不符（实测偏大 1.67×）
-   实测标定(2026-10-13)：负载 470Ω(万用表实测 460Ω)、V_load=34.9V → I_真=75.8mA
-                        对应 cc=59 → k = 75.8mA/59 = 1.259mA/计数 = 1285μA */
-			Curr = (cc < 0) ? (cc * 1259 - 500) / 1000 : (cc * 1259 + 500) / 1000;				/* (cc×8.44μV)÷4mΩ×1000 = cc×2110μA。(cc×8.44μV)÷4mΩ 单位：mA。代码要用整数运算，×1000把最小单位取成μA。整数四舍五入 1000/2 = 500， 解决负数四舍五入问题 */
+   实测标定(2026-10-13)：负载 470Ω(万用表实测 460Ω)、V_load=36.2V → I_真=78.7mA
+                        对应 cc=60 → k = 78.7mA/60 = 1.3117mA/计数 = 1312μA */
+			Curr = (cc < 0) ? (cc * 1312 - 500) / 1000 : (cc * 1312 + 500) / 1000;				/* (cc×8.44μV)÷4mΩ×1000 = cc×2110μA。(cc×8.44μV)÷4mΩ 单位：mA。代码要用整数运算，×1000把最小单位取成μA。整数四舍五入 1000/2 = 500， 解决负数四舍五入问题 */
 			g_bms.Cur_ma = Curr;	
 			BQ_WriteReg(SYS_STAT, CC_READY);													/* 读取CC库仑计后MCU主动清零（写1清零） */	
 		}			

@@ -77,6 +77,6 @@ void ClearFaultStatus(void)
 		BQ_WriteReg(SYS_STAT, SYS_STAT_OCD);	
 	if((g_bms.fault & FLAG_SC) != FLAG_SC && (sys_stat & SYS_STAT_SCD) == SYS_STAT_SCD)
 		BQ_WriteReg(SYS_STAT, SYS_STAT_SCD);
-	printf("sys_stat=0x%02X\r\n", sys_stat);
+//	printf("sys_stat=0x%02X\r\n", sys_stat);
 }
 
