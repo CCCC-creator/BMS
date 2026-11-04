@@ -98,6 +98,11 @@ void LEDTask(void *pvParameters)
 						printf("V_total = %dmV\r\n", g_bms.Total_mv);
 						printf("Fault=0x%02X\r\n", g_bms.fault);
 						printf("I=%dmA，T=%d.%d\r\n", g_bms.Cur_ma, g_bms.TemX10 / 10, g_bms.TemX10 % 10);
+						printf("%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\r\n",
+							 g_bms.Cur_ma,
+							 g_bms.Cell_mv[0],  g_bms.Cell_mv[1],  g_bms.Cell_mv[4],
+							 g_bms.Cell_mv[5],  g_bms.Cell_mv[6],  g_bms.Cell_mv[9],
+							 g_bms.Cell_mv[10], g_bms.Cell_mv[11], g_bms.Cell_mv[14]);
 						g_bms.ready = 1;																	/* 第一轮SampleTask结束 通知PortectTask */
 						cycle = 0;
 				}
