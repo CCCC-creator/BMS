@@ -59,7 +59,7 @@ extern uint32_t SystemCoreClock;
 #define configMAX_CO_ROUTINE_PRIORITIES                 2                       /* 定义协程的最大优先级, 最大优先级=configMAX_CO_ROUTINE_PRIORITIES-1, 无默认configUSE_CO_ROUTINES为1时需定义 */
 
 /* 软件定时器相关定义 */
-#define configUSE_TIMERS                                1                               /* 1: 使能软件定时器, 默认: 0 */
+#define configUSE_TIMERS                                0                               /* 1: 使能软件定时器, 默认: 0 */
 #define configTIMER_TASK_PRIORITY                       ( configMAX_PRIORITIES - 1 )    /* 定义软件定时器任务的优先级, 无默认configUSE_TIMERS为1时需定义 */
 #define configTIMER_QUEUE_LENGTH                        5                               /* 定义软件定时器命令队列的长度, 无默认configUSE_TIMERS为1时需定义 */
 #define configTIMER_TASK_STACK_DEPTH                    ( configMINIMAL_STACK_SIZE * 2) /* 定义软件定时器任务的栈空间大小, 无默认configUSE_TIMERS为1时需定义 */
@@ -78,7 +78,7 @@ extern uint32_t SystemCoreClock;
 #define INCLUDE_xTaskGetIdleTaskHandle                  1                       /* 获取空闲任务的任务句柄 */
 #define INCLUDE_eTaskGetState                           1                       /* 获取任务状态 */
 #define INCLUDE_xEventGroupSetBitFromISR                1                       /* 在中断中设置事件标志位 */
-#define INCLUDE_xTimerPendFunctionCall                  1                       /* 将函数的执行挂到定时器服务任务 */
+#define INCLUDE_xTimerPendFunctionCall                  0                       /* 将函数的执行挂到定时器服务任务 */
 #define INCLUDE_xTaskAbortDelay                         1                       /* 中断任务延时 */
 #define INCLUDE_xTaskGetHandle                          1                       /* 通过任务名获取任务句柄 */
 #define INCLUDE_xTaskResumeFromISR                      1                       /* 恢复在中断中挂起的任务 */
