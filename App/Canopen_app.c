@@ -63,9 +63,9 @@ void Canopen_Task(void *argument)
   while(1)
   {
     canopen_app_process();          /* NMT/心跳/SDO/EMCY等处理，>1ms间隔由内部判断 */
-    bms_update(); 
-		bms_control();
-		bms_emcy();
+    bms_update(); 									/* 上报上位机：只写测量值，只读控制值 */
+		bms_control();									/* 上位机控制（RPDO）：均衡MOS，充放电MOS */
+		bms_emcy();											/* 故障上报 */
 		hb.hb_Canopen++;
     vTaskDelayUntil(&lastWake, pdMS_TO_TICKS(1));
   }
@@ -98,7 +98,7 @@ static void bms_update(void)					/* 上报上位机：只写测量值，只读�
 	OD_RAM.x200A_sys_stat = g_bms.sys_stat;
 }
 
-static void bms_control(void)					/* 上位机控制：均衡MOS，充放电MOS */
+static void bms_control(void)					/* 上位机控制（RPDO）：均衡MOS，充放电MOS */
 {	
 	if(CO == NULL)											/* 协议栈还没启动 */
 		return;
@@ -121,9 +121,9 @@ static void bms_control(void)					/* 上位机控制：均衡MOS，充放电MOS 
 /* 电压 errorBit：0x40 errorCode：CO_EMC_VOLTAGE_OUTPUT(0x3300) */
 /* 电流 errorBit：0x41 errorCode：CO_EMC_CURRENT_OUTPUT(0x2300) */
 /* 温度 errorBit：0x42 errorCode：CO_EMC_TEMPERATURE(0x4000) */
-static void bms_emcy(void)									
+static void bms_emcy(void)										/* 故障上报 */
 {
-	static bool last_v = false, last_c = false, last_t = false;  /* 存上一次电压，电流，温度 */
+	static bool last_v = false, last_c = false, last_t = false;  	/* 存上一次电压，电流，温度是否故障状态 */
 	uint8_t fault = g_bms.fault;
 
 	if(CO == NULL)											/* 协议栈还没启动 */
@@ -133,8 +133,8 @@ static void bms_emcy(void)
 	bool now_c = (fault & FLAG_COC) || (fault & FLAG_DOC) || (fault & FLAG_SC);
 	bool now_t = (fault & FLAG_OT) || (fault & FLAG_UT);	
 	
-	if(now_v && !last_v)																				/* 这一轮故障且上一轮无故障，边沿触发 */
-		CO_errorReport(CO->em, EM_V, CO_EMC_VOLTAGE_OUTPUT, fault);/* CANopen 主站上报故障，发 EMCY 报文，且存历史日志，可存数量在OD的0x1003 */
+	if(now_v && !last_v)																					/* 这一轮故障且上一轮无故障，边沿触发 */
+		CO_errorReport(CO->em, EM_V, CO_EMC_VOLTAGE_OUTPUT, fault);	/* CANopen 主站上报故障，发 EMCY 报文，且存历史日志，可存数量在OD的0x1003 */
 	if(!now_v && last_v)
 		CO_errorReset(CO->em, EM_V, 0);
 	if(now_c && !last_c)																				
